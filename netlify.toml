@@ -1,0 +1,21 @@
+# IKAROS — https://docs.netlify.com/configure-builds/file-based-configuration/
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Pretty URL for the canvas game (optional)
+[[redirects]]
+  from = "/neon-pivot"
+  to = "/neon-pivot.html"
+  status = 200
+
+# Same-origin POST /api/sync as in local server.js → Netlify Function
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync"
+  status = 200
+  force = true

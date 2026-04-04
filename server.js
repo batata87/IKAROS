@@ -11,7 +11,8 @@ const isProd =
   process.env.NODE_ENV === 'production';
 /** Single port for UI + API — avoids 5173/8787 conflicts and proxy issues */
 const PORT = Number(process.env.PORT) || 3333;
-const SECRET_CONCEPT = process.env.LOGIOS_SECRET || 'Eternity';
+const SECRET_CONCEPT =
+  process.env.IKAROS_SECRET || process.env.LOGIOS_SECRET || 'Eternity';
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -35,7 +36,7 @@ function createSyncHandler() {
         messages: [
           {
             role: 'system',
-            content: `You compare a single user word/phrase to a secret target concept for a game called LOGIOS.
+            content: `You compare a single user word/phrase to a secret target concept for a game called IKAROS.
 The secret concept is: "${SECRET_CONCEPT}".
 Respond with ONLY valid JSON: {"score": <integer 0-100>}
 Rules:
@@ -108,7 +109,7 @@ async function main() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('');
-    console.log(`  LOGIOS  →  http://127.0.0.1:${PORT}/`);
+    console.log(`  IKAROS  →  http://127.0.0.1:${PORT}/`);
     console.log(`            (same port: game UI + /api/sync)`);
     if (!isProd) {
       console.log('            Dev: Vite + API in one process.');

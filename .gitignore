@@ -3,6 +3,7 @@ dist
 .env
 .env.local
 *.log
+.netlify
 
 # Godot (Neon Pivot)
 neon_pivot/.godot/

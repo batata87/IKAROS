@@ -26,7 +26,7 @@ export class ErrorBoundary extends React.Component {
             zIndex: 99999,
           }}
         >
-          <strong>LOGIOS crashed</strong>
+          <strong>IKAROS crashed</strong>
           <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>{String(this.state.err)}</pre>
         </div>
       );

@@ -33,7 +33,7 @@ const COPY = {
     placeholder: 'Type a word - Enter',
     inputAria: 'Transmit word',
     share: (cycles, line, url) =>
-      `LOGIOS 001\nSync Achieved in ${cycles} Cycles.\n${line}\nSync your mind with the machine: ${url}`,
+      `IKAROS 001\nSync Achieved in ${cycles} Cycles.\n${line}\nSync your mind with the machine: ${url}`,
   },
   he: {
     menuTitle: 'בחירת שפה',
@@ -47,7 +47,7 @@ const COPY = {
     placeholder: 'הקלידו מילה - Enter',
     inputAria: 'שליחת מילה',
     share: (cycles, line, url) =>
-      `LOGIOS 001\nהסנכרון הושלם ב-${cycles} מהלכים.\n${line}\nסנכרנו תודעה עם המכונה: ${url}`,
+      `IKAROS 001\nהסנכרון הושלם ב-${cycles} מהלכים.\n${line}\nסנכרנו תודעה עם המכונה: ${url}`,
   },
 };
 

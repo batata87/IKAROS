@@ -14,7 +14,7 @@ env.remotePathTemplate = '{model}/resolve/{revision}/';
 env.useBrowserCache = true;
 env.backends.onnx.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/@xenova/transformers@${TRANSFORMERS_VERSION}/dist/`;
 
-const CACHE_PURGE_KEY = 'logios-transformers-cache-purge-v2';
+const CACHE_PURGE_KEY = 'ikaros-transformers-cache-purge-v2';
 
 /**
  * Old builds could cache HTML (SPA fallback) under transformers-cache keys for `/models/...`.
@@ -97,7 +97,7 @@ export async function warmupLocalSync() {
     await getSecretEmbedding();
   } catch (e) {
     // Keep details for UI/console so model boot issues are debuggable.
-    console.error('LOGIOS local model warmup failed:', e);
+    console.error('IKAROS local model warmup failed:', e);
     throw e;
   }
 }

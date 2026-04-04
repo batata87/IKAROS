@@ -709,18 +709,25 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     }
   }
 
-  /** Horizontal screen wrap while dashing; clears ghost trail so blobs don’t span the wrap seam. */
-  function wrapPlayerXDuringDash() {
-    let wrapped = false;
-    if (px < 0) {
-      px = w;
-      wrapped = true;
-    } else if (px > w) {
-      px = 0;
-      wrapped = true;
-    }
-    if (wrapped) {
-      posHistory.length = 0;
+  /**
+   * Horizontal edge bounce while dashing.
+   * Screen wrap (0 ↔ w) teleported the dot past anchors in one frame, skipped capture disks, and could
+   * re-trigger wrap every frame — felt like an endless in/out loop on mostly-horizontal arcs.
+   */
+  function bouncePlayerXDuringDash() {
+    const pad = Math.max(HORIZONTAL_PAD, PLAYER_WORLD_R + 12);
+    if (px < pad) {
+      px = pad;
+      if (dashVelX < 0) {
+        dashVelX *= -0.9;
+        vx = dashVelX;
+      }
+    } else if (px > w - pad) {
+      px = w - pad;
+      if (dashVelX > 0) {
+        dashVelX *= -0.9;
+        vx = dashVelX;
+      }
     }
   }
 
@@ -1339,7 +1346,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       dashAgeSec += dt;
       px += dashVelX * simDt;
       py += dashVelY * simDt;
-      wrapPlayerXDuringDash();
+      bouncePlayerXDuringDash();
       tryCapture();
       /* Missed everything / tunneling — don’t leave the loop running forever */
       const maxDash = 4.2;

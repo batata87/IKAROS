@@ -34,22 +34,68 @@ func _on_equipped_changed(_a, _b, _c, _d) -> void:
 		_rebuild_list()
 
 
+func _add_section_title(title: String) -> void:
+	var l := Label.new()
+	l.text = title
+	l.add_theme_font_size_override("font_size", 17)
+	l.add_theme_color_override("font_color", Color(0.65, 0.95, 1.0, 1.0))
+	l.add_theme_constant_override("margin_top", 10)
+	l.add_theme_constant_override("margin_bottom", 4)
+	_item_list.add_child(l)
+
+
 func _rebuild_list() -> void:
 	for c in _item_list.get_children():
 		c.queue_free()
+
+	var full_skins: Array = []
+	var dot_skins: Array = []
+	var ring_skins: Array = []
+
 	for raw in ItemDatabase.get_items():
 		if not raw is Dictionary:
 			continue
 		var it: Dictionary = raw
-		if str(it.get("category", "")) != "skin":
-			continue
-		_item_list.add_child(_make_skin_row(it))
+		var cat := str(it.get("category", ""))
+		match cat:
+			"skin":
+				full_skins.append(it)
+			"dot_skin":
+				dot_skins.append(it)
+			"ring_skin":
+				ring_skins.append(it)
+
+	if full_skins.size() > 0:
+		_add_section_title("Full sets (pilot + anchors)")
+		for it in full_skins:
+			_item_list.add_child(_make_skin_row(it))
+
+	if dot_skins.size() > 0:
+		_add_section_title("Pilot dots")
+		for it in dot_skins:
+			_item_list.add_child(_make_skin_row(it))
+
+	if ring_skins.size() > 0:
+		_add_section_title("Anchor rings")
+		for it in ring_skins:
+			_item_list.add_child(_make_skin_row(it))
+
+
+func _row_is_equipped(id: String, category: String) -> bool:
+	match category:
+		"dot_skin":
+			return ItemDatabase.equipped_dot_id == id
+		"ring_skin":
+			return ItemDatabase.equipped_ring_id == id
+		_:
+			return ItemDatabase.equipped_dot_id == id and ItemDatabase.equipped_ring_id == id
 
 
 func _make_skin_row(it: Dictionary) -> Control:
 	var id: String = str(it.get("id", ""))
 	var name_str: String = str(it.get("name", id))
 	var price: int = int(it.get("price", 0))
+	var category := str(it.get("category", "skin"))
 
 	var row := MarginContainer.new()
 	row.add_theme_constant_override("margin_top", 4)
@@ -63,7 +109,8 @@ func _make_skin_row(it: Dictionary) -> Control:
 	panel.add_child(h)
 
 	var lbl := Label.new()
-	lbl.text = "%s\n%d LUX" % [name_str, price] if price > 0 else "%s\nFree" % name_str
+	var price_line := ("%d LUX" % price) if price > 0 else "Free"
+	lbl.text = "%s\n%s" % [name_str, price_line]
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	h.add_child(lbl)
@@ -72,7 +119,7 @@ func _make_skin_row(it: Dictionary) -> Control:
 	btn.custom_minimum_size = Vector2(140, 44)
 	btn.focus_mode = Control.FOCUS_NONE
 
-	var equipped: bool = ItemDatabase.equipped_id == id
+	var equipped: bool = _row_is_equipped(id, category)
 	var unlocked: bool = ItemDatabase.is_unlocked(id)
 	var bal: int = CurrencyManager.lux
 

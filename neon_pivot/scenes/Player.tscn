@@ -38,3 +38,8 @@ amount = 40
 lifetime = 0.4
 emitting = false
 process_material = SubResource("ParticleProcessMaterial_trail")
+
+[node name="ChargeBlip" type="AudioStreamPlayer" parent="."]
+
+[node name="ChargeHum" type="AudioStreamPlayer" parent="."]
+volume_db = -24.0

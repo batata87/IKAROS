@@ -102,8 +102,14 @@ const BASE_DASH_SPEED = 600;
 const DASH_SPEED_MILESTONE_FACTOR = 1.1;
 const DASH_SPEED_MILESTONE_SCORES = [10, 25, 50];
 /** Base orbit ω (rad/s); +5°/s per score point (applied in frame from live score). */
-const BASE_ORBIT_RAD_PER_SEC = 0.92;
-const ORBIT_RAD_PER_SCORE_POINT = (5 * Math.PI) / 180;
+/** Starting orbit speed (rad/s) — kept modest so the first rings feel calm. */
+const BASE_ORBIT_RAD_PER_SEC = 0.66;
+/**
+ * Orbit ω → BASE + EXTRA_MAX (asymptote) with score; replaces linear +5°/s per point
+ * which felt harsh by ~15–18 captures.
+ */
+const ORBIT_OMEGA_EXTRA_MAX = 3.14;
+const ORBIT_OMEGA_SCORE_TAU = 44;
 /** Hard cap on |ω| so high scores stay controllable (rad/s). */
 const MAX_ORBIT_OMEGA_RAD_PER_SEC = 3.85;
 /** Icarus melt: ring shrinks 1 → 0.2 over this many seconds (wall clock — always runs smoothly). */
@@ -222,8 +228,12 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   }
 
   function orbitOmega() {
-    const raw = BASE_ORBIT_RAD_PER_SEC + score * ORBIT_RAD_PER_SCORE_POINT;
-    return Math.min(MAX_ORBIT_OMEGA_RAD_PER_SEC, raw);
+    const extra =
+      ORBIT_OMEGA_EXTRA_MAX * (1 - Math.exp(-score / ORBIT_OMEGA_SCORE_TAU));
+    return Math.min(
+      MAX_ORBIT_OMEGA_RAD_PER_SEC,
+      BASE_ORBIT_RAD_PER_SEC + extra,
+    );
   }
 
   /** Dashed “trajectory” line length scales with speed / score. */

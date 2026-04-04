@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/coyote_burst.gd" id="1_cb"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_coyote"]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 8.0
+direction = Vector3(0, -1, 0)
+spread = 180.0
+initial_velocity_min = 120.0
+initial_velocity_max = 320.0
+gravity = Vector3(0, 0, 0)
+scale_min = 0.2
+scale_max = 0.55
+color = Color(1, 0.35, 0.75, 1)
+
+[node name="CoyoteBurst" type="GPUParticles2D"]
+z_index = 40
+emitting = false
+amount = 56
+lifetime = 0.42
+one_shot = true
+explosiveness = 0.92
+randomness = 0.35
+process_material = SubResource("ParticleProcessMaterial_coyote")
+script = ExtResource("1_cb")

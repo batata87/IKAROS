@@ -1,5 +1,6 @@
 extends Node
 ## Autoload: static item defs from res://data/items.json + user unlock / equip (user://).
+## Full `skin` sets both pilot + anchors; `dot_skin` / `ring_skin` mix independently.
 
 signal equipped_changed(
 	player_fill: Color,
@@ -12,12 +13,16 @@ const ITEMS_JSON := "res://data/items.json"
 const USER_PATH := "user://vault_items.cfg"
 const SEC := "vault"
 const KEY_UNLOCKED := "unlocked_ids"
-const KEY_EQUIPPED := "equipped_id"
+## Legacy single slot (migrated once to dot + ring).
+const KEY_EQUIPPED_LEGACY := "equipped_id"
+const KEY_EQUIPPED_DOT := "equipped_dot_id"
+const KEY_EQUIPPED_RING := "equipped_ring_id"
 
 var _items: Array = []
 ## id -> bool
 var _unlocked: Dictionary = {}
-var equipped_id: String = "skin_default"
+var equipped_dot_id: String = "skin_default"
+var equipped_ring_id: String = "skin_default"
 
 
 func _ready() -> void:
@@ -51,9 +56,19 @@ func _load_user() -> void:
 	elif raw is Array:
 		for id in raw:
 			_unlocked[str(id)] = true
-	equipped_id = str(cf.get_value(SEC, KEY_EQUIPPED, "skin_default"))
-	if not is_unlocked(equipped_id):
-		equipped_id = "skin_default"
+
+	if cf.has_section_key(SEC, KEY_EQUIPPED_DOT):
+		equipped_dot_id = str(cf.get_value(SEC, KEY_EQUIPPED_DOT, "skin_default"))
+		equipped_ring_id = str(cf.get_value(SEC, KEY_EQUIPPED_RING, "skin_default"))
+	else:
+		var legacy := str(cf.get_value(SEC, KEY_EQUIPPED_LEGACY, "skin_default"))
+		equipped_dot_id = legacy
+		equipped_ring_id = legacy
+
+	if not is_unlocked(equipped_dot_id):
+		equipped_dot_id = "skin_default"
+	if not is_unlocked(equipped_ring_id):
+		equipped_ring_id = "skin_default"
 
 
 func _seed_defaults() -> void:
@@ -63,7 +78,8 @@ func _seed_defaults() -> void:
 		var id: String = str(it.get("id", ""))
 		if bool(it.get("unlocked_default", false)):
 			_unlocked[id] = true
-	equipped_id = "skin_default"
+	equipped_dot_id = "skin_default"
+	equipped_ring_id = "skin_default"
 	save_user()
 
 
@@ -75,7 +91,8 @@ func save_user() -> void:
 		if _unlocked[k]:
 			ids.append(str(k))
 	cf.set_value(SEC, KEY_UNLOCKED, ids)
-	cf.set_value(SEC, KEY_EQUIPPED, equipped_id)
+	cf.set_value(SEC, KEY_EQUIPPED_DOT, equipped_dot_id)
+	cf.set_value(SEC, KEY_EQUIPPED_RING, equipped_ring_id)
 	cf.save(USER_PATH)
 
 
@@ -102,7 +119,18 @@ func unlock(id: String) -> void:
 func equip(id: String) -> void:
 	if not is_unlocked(id):
 		return
-	equipped_id = id
+	var it := get_item(id)
+	if it.is_empty():
+		return
+	var cat := str(it.get("category", "skin"))
+	match cat:
+		"dot_skin":
+			equipped_dot_id = id
+		"ring_skin":
+			equipped_ring_id = id
+		_:
+			equipped_dot_id = id
+			equipped_ring_id = id
 	save_user()
 	_apply_equipped_theme()
 
@@ -114,13 +142,14 @@ func _color_from_arr(arr: Variant, fallback: Color) -> Color:
 
 
 func peek_equipped_theme() -> Array:
-	var it := get_item(equipped_id)
-	return [
-		_color_from_arr(it.get("player_fill", null), Color(1, 0.35, 1, 0.95)),
-		_color_from_arr(it.get("player_ring", null), Color(0.4, 1, 1, 0.9)),
-		_color_from_arr(it.get("anchor_ring", null), Color(0, 1, 1, 0.85)),
-		_color_from_arr(it.get("anchor_core", null), Color(1, 0, 1, 0.35)),
-	]
+	var def := get_item("skin_default")
+	var dot := get_item(equipped_dot_id)
+	var ring := get_item(equipped_ring_id)
+	var pf := _color_from_arr(dot.get("player_fill", null), _color_from_arr(def.get("player_fill", null), Color(1, 0.35, 1, 0.95)))
+	var pr := _color_from_arr(dot.get("player_ring", null), _color_from_arr(def.get("player_ring", null), Color(0.4, 1, 1, 0.9)))
+	var ar := _color_from_arr(ring.get("anchor_ring", null), _color_from_arr(def.get("anchor_ring", null), Color(0, 1, 1, 0.85)))
+	var ac := _color_from_arr(ring.get("anchor_core", null), _color_from_arr(def.get("anchor_core", null), Color(1, 0, 1, 0.35)))
+	return [pf, pr, ar, ac]
 
 
 func _apply_equipped_theme() -> void:

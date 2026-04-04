@@ -1,10 +1,12 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/level_generator.gd" id="2_levelgen"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/StoreScreen.tscn" id="4_store"]
 [ext_resource type="Script" path="res://scripts/feedback_system.gd" id="5_feedback"]
+[ext_resource type="Shader" path="res://shaders/chromatic_aberration.gdshader" id="6_chromatic_shader"]
+[ext_resource type="Script" path="res://scripts/screen_juice.gd" id="7_screen_juice"]
 
 [sub_resource type="Environment" id="Environment_neon"]
 background_mode = 0
@@ -13,6 +15,10 @@ glow_intensity = 0.45
 glow_strength = 0.85
 glow_blend_mode = 0
 glow_hdr_threshold = 0.85
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_chromatic"]
+shader = ExtResource("6_chromatic_shader")
+shader_parameter/aberration_strength = 0.0
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -24,6 +30,21 @@ script = ExtResource("5_feedback")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_neon")
+
+[node name="ScreenJuiceLayer" type="CanvasLayer" parent="."]
+layer = 9
+
+[node name="ChromaticOverlay" type="ColorRect" parent="ScreenJuiceLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
+material = SubResource("ShaderMaterial_chromatic")
+script = ExtResource("7_screen_juice")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 layer = 10

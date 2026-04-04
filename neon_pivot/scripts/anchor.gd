@@ -14,6 +14,15 @@ var _pulse_tween: Tween
 
 func _ready() -> void:
 	add_to_group("anchors")
+	ItemDatabase.equipped_changed.connect(_on_equipped_theme)
+	var c: Array = ItemDatabase.peek_equipped_theme()
+	_on_equipped_theme(c[0], c[1], c[2], c[3])
+	queue_redraw()
+
+
+func _on_equipped_theme(_player_fill: Color, _player_ring: Color, ar: Color, ac: Color) -> void:
+	ring_color = ar
+	core_color = ac
 	queue_redraw()
 
 

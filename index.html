@@ -413,6 +413,19 @@
       </div>
     </div>
 
+    <!-- Netlify Forms: must exist in deployed HTML (build → dist/). Godot/web clients POST the same fields via AJAX. -->
+    <div
+      class="netlify-form-detection"
+      aria-hidden="true"
+      style="position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden"
+    >
+      <form name="ikaros-feedback" method="POST" data-netlify="true">
+        <label>Name (optional) <input type="text" name="name" autocomplete="name" /></label>
+        <label>Your thoughts <textarea name="message" required placeholder="How does the flight feel?"></textarea></label>
+        <button type="submit">Send to the Sun</button>
+      </form>
+    </div>
+
     <canvas id="game" aria-label="IKAROS game"></canvas>
     <button type="button" id="ikaros-menu-info" class="ikaros-menu-info" hidden aria-label="Info and lore">?</button>
     <script type="module" src="/src/neon-pivot/main.js"></script>

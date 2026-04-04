@@ -11,17 +11,33 @@ var _ghost_line: Line2D
 
 @onready var trail_particles: GPUParticles2D = $TrailParticles
 
+var _fill_color: Color = Color(1.0, 0.35, 1.0, 0.95)
+var _ring_color: Color = Color(0.4, 1.0, 1.0, 0.9)
+
 
 func _ready() -> void:
+	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 0
 	_ghost_line = get_node_or_null("GhostLine") as Line2D
+	ItemDatabase.equipped_changed.connect(_on_equipped_theme)
+	var c: Array = ItemDatabase.peek_equipped_theme()
+	_on_equipped_theme(c[0], c[1], c[2], c[3])
+	queue_redraw()
+
+
+func _on_equipped_theme(pf: Color, pr: Color, _ar: Color, _ac: Color) -> void:
+	_fill_color = pf
+	_ring_color = pr
+	if trail_particles and trail_particles.process_material is ParticleProcessMaterial:
+		var pm := trail_particles.process_material as ParticleProcessMaterial
+		pm.color = Color(pr.r, pr.g, pr.b, 0.55)
 	queue_redraw()
 
 
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 14.0, Color(1.0, 0.35, 1.0, 0.95))
-	draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 48, Color(0.4, 1.0, 1.0, 0.9), 2.0, true)
+	draw_circle(Vector2.ZERO, 14.0, _fill_color)
+	draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 48, _ring_color, 2.0, true)
 
 
 func initialize_after_level() -> void:

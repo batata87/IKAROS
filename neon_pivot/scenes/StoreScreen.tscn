@@ -1,0 +1,114 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/store_screen.gd" id="1_store"]
+
+[node name="StoreScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_store")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.06, 0.92)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TitleRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.85, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "THE VAULT"
+
+[node name="BackBtn" type="Button" parent="Margin/VBox/TitleRow"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "Back"
+
+[node name="LuxRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="LuxLabel" type="Label" parent="Margin/VBox/LuxRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.92, 0.45, 1)
+theme_override_font_sizes/font_size = 22
+text = "LUX: 0"
+
+[node name="SkinsHeader" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Skins"
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ItemList" type="VBoxContainer" parent="Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator" type="HSeparator" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="BuyLuxLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 1, 0.85, 1)
+theme_override_font_sizes/font_size = 18
+text = "Buy LUX"
+
+[node name="IAPRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="IAP099" type="Button" parent="Margin/VBox/IAPRow"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "$0.99"
+
+[node name="IAP499" type="Button" parent="Margin/VBox/IAPRow"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "$4.99"
+
+[node name="IAP999" type="Button" parent="Margin/VBox/IAPRow"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "$9.99"
+
+[connection signal="pressed" from="Margin/VBox/TitleRow/BackBtn" to="." method="_on_back"]
+[connection signal="pressed" from="Margin/VBox/IAPRow/IAP099" to="." method="_on_iap_099"]
+[connection signal="pressed" from="Margin/VBox/IAPRow/IAP499" to="." method="_on_iap_499"]
+[connection signal="pressed" from="Margin/VBox/IAPRow/IAP999" to="." method="_on_iap_999"]

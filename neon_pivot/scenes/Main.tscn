@@ -1,8 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/level_generator.gd" id="2_levelgen"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/StoreScreen.tscn" id="4_store"]
+[ext_resource type="Script" path="res://scripts/feedback_system.gd" id="5_feedback"]
 
 [sub_resource type="Environment" id="Environment_neon"]
 background_mode = 0
@@ -14,6 +16,11 @@ glow_hdr_threshold = 0.85
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="FeedbackSystem" type="Node" parent="."]
+script = ExtResource("5_feedback")
+
+[node name="HTTPRequest" type="HTTPRequest" parent="FeedbackSystem"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_neon")
@@ -47,6 +54,183 @@ offset_bottom = 84.0
 theme_override_colors/font_color = Color(1, 0.55, 1, 1)
 theme_override_font_sizes/font_size = 22
 text = "x1.0"
+
+[node name="LuxBalance" type="Label" parent="CanvasLayer/HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = 12.0
+offset_right = -20.0
+offset_bottom = 48.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.92, 0.45, 1)
+theme_override_font_sizes/font_size = 22
+text = "LUX: 0"
+horizontal_alignment = 2
+
+[node name="MainMenu" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MenuBg" type="ColorRect" parent="CanvasLayer/MainMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.03, 0.08, 0.97)
+
+[node name="Center" type="CenterContainer" parent="CanvasLayer/MainMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/MainMenu/Center"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="CanvasLayer/MainMenu/Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 1, 1, 1)
+theme_override_font_sizes/font_size = 36
+text = "Neon Pivot"
+horizontal_alignment = 1
+
+[node name="BtnPlay" type="Button" parent="CanvasLayer/MainMenu/Center/VBox"]
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Play"
+
+[node name="BtnVault" type="Button" parent="CanvasLayer/MainMenu/Center/VBox"]
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "🛒 The Vault"
+
+[node name="BtnFeedback" type="Button" parent="CanvasLayer/MainMenu"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -148.0
+offset_top = -56.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+focus_mode = 0
+theme_override_colors/font_color = Color(0, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "Feedback"
+flat = true
+
+[node name="FeedbackModal" type="Control" parent="CanvasLayer/MainMenu"]
+visible = false
+z_index = 20
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="CanvasLayer/MainMenu/FeedbackModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.78)
+
+[node name="Center" type="CenterContainer" parent="CanvasLayer/MainMenu/FeedbackModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Panel" type="PanelContainer" parent="CanvasLayer/MainMenu/FeedbackModal/Center"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Hdr" type="Label" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "Help us improve IKAROS"
+horizontal_alignment = 1
+
+[node name="LblName" type="Label" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "Name (optional)"
+
+[node name="NameEdit" type="LineEdit" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+placeholder_text = "Ikaros"
+
+[node name="LblMsg" type="Label" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "Your thoughts"
+
+[node name="MessageEdit" type="TextEdit" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+placeholder_text = "How does the flight feel?"
+
+[node name="SubmitBtn" type="Button" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Send to the Sun"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.65, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="CloseBtn" type="Button" parent="CanvasLayer/MainMenu/FeedbackModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Close"
+
+[node name="StoreScreen" parent="CanvasLayer" instance=ExtResource("4_store")]
 
 [node name="LevelGenerator" type="Node2D" parent="."]
 script = ExtResource("2_levelgen")

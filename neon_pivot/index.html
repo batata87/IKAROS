@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IKAROS — Netlify Forms (Godot export)</title>
+  <!--
+    Production site uses the repo root index.html (Vite → dist/). Copy this block there if you
+    deploy only the Godot HTML shell; otherwise mirror the same <form> in your export index.
+  -->
+</head>
+<body>
+  <div
+    class="netlify-form-detection"
+    aria-hidden="true"
+    style="position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden"
+  >
+    <form name="ikaros-feedback" method="POST" data-netlify="true">
+      <label>Name (optional) <input type="text" name="name" autocomplete="name" /></label>
+      <label>Your thoughts <textarea name="message" required placeholder="How does the flight feel?"></textarea></label>
+      <button type="submit">Send to the Sun</button>
+    </form>
+  </div>
+</body>
+</html>

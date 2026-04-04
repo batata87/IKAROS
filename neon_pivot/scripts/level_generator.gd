@@ -3,7 +3,9 @@ extends Node2D
 ## Procedural anchors: adaptive distance + angle ahead of the player.
 
 const ANCHOR_SCENE := preload("res://scenes/Anchor.tscn")
+const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 
+@export var lux_spawn_chance: float = 0.42
 @export var spawn_ahead_min: float = 380.0
 @export var spawn_ahead_max: float = 620.0
 @export var cull_behind_distance: float = 1100.0
@@ -45,13 +47,26 @@ func spawn_anchor_at(global_pos: Vector2) -> NeonAnchor:
 func _queue_spawn_ahead() -> void:
 	if _player == null:
 		return
+	var from: Vector2 = _last_spawn_anchor_pos
 	var score: int = GameManager.score
 	var d: float = randf_range(spawn_ahead_min, spawn_ahead_max) + score * 0.35
 	var theta: float = deg_to_rad(randf_range(-38.0, 38.0))
 	var dir: Vector2 = _forward_hint.rotated(theta).normalized()
 	var target: Vector2 = _last_spawn_anchor_pos + dir * d
 	spawn_anchor_at(target)
+	_maybe_spawn_lux_between(from, target)
 	_last_spawn_anchor_pos = target
+
+
+func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
+	if randf() > lux_spawn_chance:
+		return
+	var t: float = randf_range(0.22, 0.78)
+	var pos: Vector2 = from.lerp(to, t)
+	pos += Vector2(randf_range(-72.0, 72.0), randf_range(-56.0, 56.0))
+	var lux: LuxPickup = LUX_SCENE.instantiate()
+	lux.global_position = pos
+	add_child(lux)
 
 
 func _try_spawn_ahead() -> void:
@@ -69,7 +84,7 @@ func _try_spawn_ahead() -> void:
 
 func _cull_distant() -> void:
 	for child in get_children():
-		if child is NeonAnchor:
+		if child is NeonAnchor or child is LuxPickup:
 			if child.global_position.distance_to(_player.global_position) > cull_behind_distance:
 				child.queue_free()
 

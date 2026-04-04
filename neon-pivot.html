@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>IKAROS</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: #000000;
+        overflow: hidden;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      /* Viewport-sized canvas: % height can collapse to 0 when siblings are fixed/hidden. */
+      #game {
+        display: block;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+        z-index: 1;
+      }
+
+      .ikaros-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: #030308;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ikaros-splash__bg {
+        position: absolute;
+        inset: 0;
+        background: #030308 center / cover no-repeat;
+        /* 1024×1024 liquid-glass art; scales to any aspect */
+      }
+
+      .ikaros-splash__title {
+        position: relative;
+        z-index: 1;
+        margin: 0 0 6vh;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-weight: 800;
+        font-size: clamp(2rem, 9vw, 3.25rem);
+        letter-spacing: 0.35em;
+        text-indent: 0.35em;
+        color: #00ffff;
+        text-shadow:
+          0 0 20px rgba(0, 255, 255, 0.75),
+          0 0 48px rgba(0, 255, 255, 0.35);
+      }
+
+      /* Magenta “O” accent — subtle pulse (liquid-glass orb). */
+      .ikaros-splash__orb {
+        position: relative;
+        z-index: 1;
+        width: min(22vmin, 140px);
+        height: min(22vmin, 140px);
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 35% 30%,
+          rgba(255, 80, 255, 0.95),
+          rgba(255, 0, 200, 0.45) 45%,
+          rgba(80, 0, 60, 0.2) 70%
+        );
+        box-shadow:
+          0 0 28px rgba(255, 0, 255, 0.85),
+          0 0 64px rgba(255, 0, 255, 0.35),
+          inset 0 0 24px rgba(255, 200, 255, 0.35);
+        transform: scale(1);
+        animation: ikaros-splash-orb-pulse 1.85s ease-in-out infinite;
+      }
+
+      @keyframes ikaros-splash-orb-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          filter: brightness(1);
+        }
+        50% {
+          transform: scale(1.06);
+          filter: brightness(1.12);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ikaros-splash__orb {
+          animation: none;
+        }
+      }
+
+      .ikaros-splash__loading {
+        position: absolute;
+        bottom: 8vh;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        width: min(72vw, 320px);
+        text-align: center;
+        font-family: system-ui, sans-serif;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .ikaros-splash__bar {
+        margin-top: 10px;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .ikaros-splash__bar-fill {
+        height: 100%;
+        width: 80%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #00ffff, #40ffff);
+        box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
+        animation: ikaros-splash-bar 2s linear forwards;
+      }
+
+      @keyframes ikaros-splash-bar {
+        from {
+          width: 0%;
+        }
+        to {
+          width: 80%;
+        }
+      }
+
+      .ikaros-splash__veil {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background: #000000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.65s ease-in;
+      }
+
+      .ikaros-splash--exit .ikaros-splash__veil {
+        opacity: 1;
+      }
+
+      /* —— Info & Lore (web analogue of InfoScreen.tscn) —— */
+      .ikaros-info {
+        position: fixed;
+        inset: 0;
+        z-index: 800;
+        display: flex;
+        flex-direction: column;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .ikaros-info[hidden] {
+        display: none !important;
+      }
+
+      .ikaros-info__bg {
+        position: absolute;
+        inset: 0;
+        background: #030308 center / cover no-repeat;
+        background-image: url(/splash/splash_bg.png);
+      }
+
+      .ikaros-info__tint {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+      }
+
+      .ikaros-info__scroll {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: max(16px, env(safe-area-inset-top)) 22px 100px;
+        max-width: 34rem;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .ikaros-info__brand {
+        margin: 0 0 20px;
+        font-weight: 800;
+        font-size: clamp(1.75rem, 6vw, 2.25rem);
+        letter-spacing: 0.28em;
+        text-indent: 0.28em;
+        text-align: center;
+        color: #00ffff;
+        text-shadow:
+          0 0 16px rgba(0, 255, 255, 0.65),
+          0 0 40px rgba(0, 255, 255, 0.3);
+      }
+
+      .ikaros-info__legend-title {
+        margin: 0 0 12px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .ikaros-info__lore {
+        margin: 0 0 28px;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        font-style: italic;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .ikaros-info__trial-title {
+        margin: 0 0 12px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .ikaros-info__trial {
+        margin: 0;
+        padding-left: 1.15rem;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .ikaros-info__trial li {
+        margin-bottom: 10px;
+      }
+
+      .ikaros-info__trial strong {
+        color: rgba(200, 255, 255, 0.95);
+        font-weight: 700;
+      }
+
+      .ikaros-info__back {
+        position: relative;
+        z-index: 2;
+        flex-shrink: 0;
+        margin: auto 20px max(16px, env(safe-area-inset-bottom));
+        padding: 14px 24px;
+        border: 1px solid rgba(0, 255, 255, 0.45);
+        border-radius: 10px;
+        background: rgba(0, 40, 45, 0.55);
+        color: #00ffff;
+        font-size: 1rem;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        max-width: 20rem;
+        align-self: center;
+        width: calc(100% - 40px);
+      }
+
+      .ikaros-info__back:active {
+        opacity: 0.85;
+      }
+
+      /* Main menu: info (?), top-right — cyan glow to match logo */
+      .ikaros-menu-info {
+        position: fixed;
+        top: calc(40px + env(safe-area-inset-top, 0px));
+        right: calc(40px + env(safe-area-inset-right, 0px));
+        z-index: 750;
+        box-sizing: border-box;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 255, 255, 0.55);
+        background: rgba(0, 28, 32, 0.78);
+        color: #00ffff;
+        font-size: 1.4rem;
+        font-weight: 800;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow:
+          0 0 18px rgba(0, 255, 255, 0.5),
+          0 0 40px rgba(0, 255, 255, 0.22),
+          inset 0 0 14px rgba(0, 255, 255, 0.14);
+        text-shadow:
+          0 0 12px rgba(0, 255, 255, 0.85),
+          0 0 24px rgba(0, 255, 255, 0.35);
+      }
+
+      .ikaros-menu-info[hidden] {
+        display: none !important;
+      }
+
+      .ikaros-menu-info:active {
+        transform: scale(0.96);
+        opacity: 0.92;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ikaros-splash" class="ikaros-splash" aria-hidden="true">
+      <div
+        class="ikaros-splash__bg"
+        style="background-image: url(/splash/ikaros-splash.png)"
+        role="img"
+        aria-label="IKAROS"
+      ></div>
+      <h1 class="ikaros-splash__title">IKAROS</h1>
+      <div class="ikaros-splash__orb" aria-hidden="true"></div>
+      <div class="ikaros-splash__loading">
+        Loading…
+        <div class="ikaros-splash__bar" aria-hidden="true">
+          <div class="ikaros-splash__bar-fill"></div>
+        </div>
+      </div>
+      <div class="ikaros-splash__veil" aria-hidden="true"></div>
+    </div>
+
+    <div id="ikaros-info" class="ikaros-info" hidden>
+      <div class="ikaros-info__bg" aria-hidden="true"></div>
+      <div class="ikaros-info__tint" aria-hidden="true"></div>
+      <div class="ikaros-info__scroll">
+        <h1 class="ikaros-info__brand">IKAROS</h1>
+        <h2 class="ikaros-info__legend-title">THE LEGEND OF IKAROS</h2>
+        <p class="ikaros-info__lore">
+          Driven by the desire for freedom, Ikaros took to the sky on wings of wax and feathers. The path was
+          narrow: fly too low, and the sea would dampen the wings; fly too high, and the sun’s heat would destroy
+          them. In the thrill of the ascent, Ikaros reached for the sun. The wings dissolved, and the flight ended in
+          the abyss.
+        </p>
+        <h2 class="ikaros-info__trial-title">HOW TO PLAY</h2>
+        <ul class="ikaros-info__trial">
+          <li>
+            <strong>ORBIT:</strong> Your momentum is captured by the gravity of the stars.
+          </li>
+          <li><strong>LEAP:</strong> Tap the screen to break the orbit and dash toward the sun.</li>
+          <li>
+            <strong>CLIMB:</strong> You can only progress Up. Releasing downward will result in a fall.
+          </li>
+          <li><strong>MELT:</strong> The higher you go, the faster the stars shrink. Do not linger.</li>
+          <li>
+            <strong>MOMENTUM:</strong> Jump quickly between stars to increase your score multiplier.
+          </li>
+        </ul>
+      </div>
+      <button type="button" id="ikaros-info-back" class="ikaros-info__back">Back</button>
+    </div>
+
+    <canvas id="game" aria-label="IKAROS game"></canvas>
+    <button type="button" id="ikaros-menu-info" class="ikaros-menu-info" hidden aria-label="Info and lore">?</button>
+    <script type="module" src="/src/neon-pivot/main.js"></script>
+  </body>
+</html>

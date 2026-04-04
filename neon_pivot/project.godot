@@ -1,0 +1,40 @@
+; Godot Engine - Neon Pivot
+; Godot 4.3+ — open this folder as the project root.
+
+config_version=5
+
+[application]
+
+config/name="Neon Pivot"
+config/description="Mobile neon-vector physics arcade — orbit, dash, chain anchors."
+config/version="0.1.0"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*res://scripts/game_manager.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[layer_names]
+
+2d_physics/layer_1="anchors"
+2d_physics/layer_2="player"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)

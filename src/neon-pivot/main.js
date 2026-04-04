@@ -7,6 +7,10 @@ const infoBack = document.getElementById('ikaros-info-back');
 const menuInfoBtn = document.getElementById('ikaros-menu-info');
 
 function openInfo() {
+  /* Splash art often includes “loading” chrome at the bottom; never show through Help. */
+  const splash = document.getElementById('ikaros-splash');
+  const loadRow = splash?.querySelector('.ikaros-splash__loading');
+  if (loadRow) loadRow.style.visibility = 'hidden';
   if (infoEl) infoEl.hidden = false;
 }
 

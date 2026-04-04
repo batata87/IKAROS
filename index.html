@@ -187,20 +187,45 @@
       .ikaros-info__bg {
         position: absolute;
         inset: 0;
-        background: #030308 center / cover no-repeat;
+        z-index: 0;
+        background-color: #030308;
         background-image: url(/splash/splash_bg.png);
+        background-repeat: no-repeat;
+        background-size: cover;
+        /* Anchor top so “loading” chrome baked into the bottom of the art is cropped on tall phones. */
+        background-position: center top;
       }
 
       .ikaros-info__tint {
         position: absolute;
         inset: 0;
+        z-index: 0;
         background: rgba(0, 0, 0, 0.5);
         pointer-events: none;
       }
 
+      /* Fade out bottom of artwork (often shares splash “loading” UI with first-screen asset). */
+      .ikaros-info::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: min(220px, 32vh);
+        z-index: 1;
+        pointer-events: none;
+        background: linear-gradient(
+          to top,
+          #030308 0%,
+          #030308 35%,
+          rgba(3, 3, 8, 0.92) 55%,
+          transparent 100%
+        );
+      }
+
       .ikaros-info__scroll {
         position: relative;
-        z-index: 1;
+        z-index: 2;
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -265,23 +290,31 @@
         font-weight: 700;
       }
 
-      .ikaros-info__back {
+      .ikaros-info__footer {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         flex-shrink: 0;
-        margin: auto 20px max(16px, env(safe-area-inset-bottom));
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 20px max(16px, env(safe-area-inset-bottom));
+        background: #030308;
+        box-shadow: 0 -16px 32px rgba(0, 0, 0, 0.75);
+      }
+
+      .ikaros-info__back {
+        display: block;
+        margin: 0 auto;
         padding: 14px 24px;
         border: 1px solid rgba(0, 255, 255, 0.45);
         border-radius: 10px;
-        background: rgba(0, 40, 45, 0.55);
+        background: rgba(0, 36, 42, 0.98);
         color: #00ffff;
         font-size: 1rem;
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;
         max-width: 20rem;
-        align-self: center;
-        width: calc(100% - 40px);
+        width: 100%;
       }
 
       .ikaros-info__back:active {
@@ -375,7 +408,9 @@
           </li>
         </ul>
       </div>
-      <button type="button" id="ikaros-info-back" class="ikaros-info__back">Back</button>
+      <div class="ikaros-info__footer">
+        <button type="button" id="ikaros-info-back" class="ikaros-info__back">Back</button>
+      </div>
     </div>
 
     <canvas id="game" aria-label="IKAROS game"></canvas>

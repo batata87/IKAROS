@@ -143,9 +143,25 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   /** Must be declared before `resize()` — resize() assigns on first run. */
   let parallaxStarfield = null;
 
+  function prefersReducedMotion() {
+    return (
+      typeof matchMedia !== 'undefined' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+  }
+
+  function prefersCoarsePointer() {
+    return (
+      typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+    );
+  }
+
   function resize() {
-    dpr = Math.min(2, window.devicePixelRatio || 1);
     w = Math.max(1, window.innerWidth || document.documentElement?.clientWidth || 1);
+    const rawDpr = Math.min(2, window.devicePixelRatio || 1);
+    const narrow = w <= 560;
+    const coarse = prefersCoarsePointer();
+    dpr = narrow || coarse ? Math.min(1.35, rawDpr) : rawDpr;
     h = Math.max(
       1,
       window.innerHeight || document.documentElement?.clientHeight || 1,
@@ -258,6 +274,8 @@ export function startNeonPivot(canvas, uiHooks = {}) {
 
   /** Previous camera top for parallax (world px). */
   let prevCamTop = null;
+  /** Previous player Y for parallax blend during upward dash (avoids “frozen stars” when cam lags). */
+  let prevPyParallax = null;
   /** Cyan spark burst on anchor catch (world space). */
   const sparkParticles = [];
   let ionosphereScroll = 0;
@@ -635,21 +653,27 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     }
     sparkParticles.length = 0;
     prevCamTop = camTop;
+    prevPyParallax = py;
     playerVisSX = 1;
     playerVisSY = 1;
   }
 
   state = State.TITLE;
 
-  /** Fixed juice shake on every successful catch. */
+  /** Fixed juice shake on every successful catch (toned down on mobile / a11y). */
   function triggerCaptureShake() {
-    shakeMag = 5;
-    shakeDuration = 0.1;
-    shakeRemain = 0.1;
+    if (prefersReducedMotion()) return;
+    shakeMag = prefersCoarsePointer() ? 2 : 2.6;
+    shakeDuration = 0.065;
+    shakeRemain = 0.065;
     shakePhase = 0;
   }
 
   function getShakeOffset(dtReal) {
+    if (prefersReducedMotion()) {
+      shakeRemain = 0;
+      return { x: 0, y: 0 };
+    }
     if (shakeRemain <= 0) {
       shakeRemain = 0;
       return { x: 0, y: 0 };
@@ -746,7 +770,10 @@ export function startNeonPivot(canvas, uiHooks = {}) {
 
   function updateCamera(dt) {
     peakPlayerY = Math.min(peakPlayerY, py);
-    const peakK = 1 - Math.exp(-10 * Math.min(dt, 0.05));
+    let peakK = 1 - Math.exp(-10 * Math.min(dt, 0.05));
+    if (state === State.DASHING && dashVelY < 0) {
+      peakK = 1 - Math.exp(-24 * Math.min(dt, 0.05));
+    }
     if (!Number.isFinite(peakSmoothed)) peakSmoothed = peakPlayerY;
     else peakSmoothed += (peakPlayerY - peakSmoothed) * peakK;
     const idealTop = peakSmoothed - h * 0.48;
@@ -1120,16 +1147,19 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     ctx.restore();
   }
 
-  /** Sun above playfield in world space; size pulses with streak multiplier. */
-  function drawSunWorld(camTopY, comboMul, scoreRun) {
+  /**
+   * Sun locked to **screen** space (not world + shake) so it reads as a distant goal, not glued to the climb.
+   */
+  function drawSunScreen(comboMul, scoreRun) {
     const ascentBoost = scoreRun >= 21 && scoreRun <= 40 ? 1.1 : 1;
     const comboPulse = 1 + Math.min(0.5, Math.max(0, comboMul - 1) * 0.16);
     const R = 160 * ascentBoost * comboPulse;
     const inner = 6 * ascentBoost * comboPulse;
+    const wobble =
+      prefersReducedMotion() ? 0 : prefersCoarsePointer() || w < 640 ? 7 : 18;
     ctx.save();
-    const gx = cx + Math.sin(sunPhase * 0.65) * 22;
-    const gy = camTopY + 72;
-    /* Layered discs instead of createRadialGradient every frame (cuts GC stutter). */
+    const gx = cx + Math.sin(sunPhase * 0.65) * wobble;
+    const gy = 72;
     ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = 'rgba(255,150,70,0.07)';
     ctx.beginPath();
@@ -1228,7 +1258,9 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     /* Delta-time sim; rAF matches display refresh (e.g. 120 Hz ProMotion). Cap avoids spiral of death. */
     let dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
-    sunPhase += dt * 0.22;
+    sunPhase +=
+      dt *
+      (prefersReducedMotion() ? 0.05 : prefersCoarsePointer() || w < 640 ? 0.12 : 0.22);
     captureFlashRemain = Math.max(0, captureFlashRemain - dt);
     restartCooldownSec = Math.max(0, restartCooldownSec - dt);
     sound.tickFilter(dt);
@@ -1341,8 +1373,32 @@ export function startNeonPivot(canvas, uiHooks = {}) {
 
     const camDeltaY = prevCamTop == null ? 0 : camTop - prevCamTop;
     prevCamTop = camTop;
+    let parallaxCamDelta = camDeltaY;
+    if (prevPyParallax != null) {
+      const dpy = py - prevPyParallax;
+      if (state === State.DASHING && dashVelY < 0 && dpy < 0) {
+        parallaxCamDelta = Math.min(camDeltaY, dpy);
+      }
+    }
+    prevPyParallax = py;
+
+    const reduced = prefersReducedMotion();
+    const coarse = prefersCoarsePointer();
+    const mobileLike = coarse || w < 640;
+    const paraTuning = {
+      layerMulScale: reduced ? 0.38 : mobileLike ? 0.72 : 1,
+      driftScale: reduced ? 0.35 : mobileLike ? 0.68 : 1,
+    };
     if (parallaxStarfield) {
-      updateParallaxStarfield(parallaxStarfield, dt, camDeltaY, score, w, h);
+      updateParallaxStarfield(
+        parallaxStarfield,
+        dt,
+        parallaxCamDelta,
+        score,
+        w,
+        h,
+        paraTuning,
+      );
     }
     updateCaptureSparks(sparkParticles, dt);
     updatePlayerMorph(dt);
@@ -1354,7 +1410,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     if (parallaxStarfield) {
       drawParallaxStarfield(ctx, w, h, parallaxStarfield, score);
     }
-    if (score >= 41 && score <= 60) {
+    if (score >= 41 && score <= 60 && !prefersReducedMotion()) {
       const beatPh =
         typeof sound.getBeatVisualPhase === 'function'
           ? sound.getBeatVisualPhase()
@@ -1362,10 +1418,11 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       drawIonosphereOverlay(ctx, w, h, beatPh, ionosphereScroll);
     }
 
+    drawSunScreen(comboMultiplier, score);
+
     ctx.save();
     ctx.translate(0, -camTop);
     ctx.translate(shx, shy);
-    drawSunWorld(camTop, comboMultiplier, score);
     drawWorldBiomeLayer(ctx, w, h, camTop, biome, gridPhase, nebulaParticles);
     drawTrajectoryPredictor();
     drawPlayerGhostTrail();

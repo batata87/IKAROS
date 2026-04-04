@@ -104,6 +104,18 @@
         }
       }
 
+      .ikaros-splash__sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
       .ikaros-splash__loading {
         position: absolute;
         bottom: 8vh;
@@ -327,8 +339,8 @@
       ></div>
       <h1 class="ikaros-splash__title">IKAROS</h1>
       <div class="ikaros-splash__orb" aria-hidden="true"></div>
-      <div class="ikaros-splash__loading">
-        Loading…
+      <div class="ikaros-splash__loading" role="status">
+        <span class="ikaros-splash__sr">Loading game</span>
         <div class="ikaros-splash__bar" aria-hidden="true">
           <div class="ikaros-splash__bar-fill"></div>
         </div>

@@ -26,12 +26,18 @@ export function createParallaxStarfield(w, h) {
   return { layers, scrollY: [0, 0, 0] };
 }
 
-export function updateParallaxStarfield(state, dt, camDeltaY, score, w, h) {
+/**
+ * @param {{ layerMulScale?: number; driftScale?: number }} [tuning] — lower on touch / reduced-motion to ease vestibular load.
+ */
+export function updateParallaxStarfield(state, dt, camDeltaY, score, w, h, tuning) {
   if (!state) return;
+  const ms = tuning?.layerMulScale ?? 1;
+  const ds = tuning?.driftScale ?? 1;
   /* Back 10%, mid 50%, front ~115% of camera motion (depth). */
-  const mul = [0.1, 0.5, 1.15];
+  const mul = [0.1 * ms, 0.5 * ms, 1.15 * ms];
   const deep = score <= 20;
-  const driftDown = deep ? [14, 9, 22] : [3, 5, 12];
+  const baseDrift = deep ? [14, 9, 22] : [3, 5, 12];
+  const driftDown = baseDrift.map((d) => d * ds);
   for (let L = 0; L < 3; L += 1) {
     state.scrollY[L] += (-camDeltaY) * mul[L] + driftDown[L] * dt;
     const span = h + 80;

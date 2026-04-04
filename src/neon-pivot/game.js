@@ -32,6 +32,7 @@ import {
 
 const STORAGE_KEY = 'ikaros_web_hi';
 const LEGACY_STORAGE_KEY = 'neon_pivot_web_hi';
+const LUX_STORAGE_KEY = 'ikaros_web_lux';
 const ORBIT_SCALE_RESET_SEC = 1.5;
 const COMBO_CAPTURE_WINDOW_SEC = 0.5;
 
@@ -50,6 +51,22 @@ function loadHi() {
 function saveHi(n) {
   try {
     localStorage.setItem(STORAGE_KEY, String(n));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadLux() {
+  try {
+    return Math.max(0, parseInt(localStorage.getItem(LUX_STORAGE_KEY) || '0', 10) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function saveLuxBalance(n) {
+  try {
+    localStorage.setItem(LUX_STORAGE_KEY, String(Math.max(0, n)));
   } catch {
     /* ignore */
   }
@@ -180,6 +197,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
 
   let state = State.IDLE;
   let highScore = loadHi();
+  let totalLux = loadLux();
   let score = 0;
   /** Title screen animation clock (orbit + subtitle pulse). */
   let titleMenuPhase = 0;
@@ -265,6 +283,9 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   const TIME_DILATION_EDGE_MARGIN = 95;
 
   const CULL_BELOW_CAMERA = 800;
+  /** Glowing pickups between anchors; persist in localStorage. */
+  const LUX_SPAWN_CHANCE = 0.4;
+  const LUX_COLLECT_DIST = 24;
   const HORIZONTAL_PAD = 40;
   /** Min vertical distance between anchor centers so rings, glow, and orbits don’t stack on each other. */
   const MIN_ANCHOR_CENTER_GAP_Y = 168;
@@ -293,6 +314,9 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   /** Seconds (performance.now / 1000) when player last released a dash — for capture combo. */
   let lastReleaseTimeSec = -1e9;
   let comboPopupRemain = 0;
+
+  /** World-space LUX sparks (spawned between anchors). */
+  const luxPickups = [];
 
   /** C-major ladder step for next pluck (0 = C, 1 = D, …). Reset after long orbit. */
   let scaleCatchIndex = 0;
@@ -534,6 +558,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
         nx = Math.min(w - HORIZONTAL_PAD, Math.max(HORIZONTAL_PAD, nx));
       }
       anchors.push(createAnchor(nx, ny, score));
+      maybeSpawnLuxBetweenAnchors(a0, anchors[anchors.length - 1]);
       return;
     }
 
@@ -581,6 +606,71 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       nx = Math.min(w - HORIZONTAL_PAD, Math.max(HORIZONTAL_PAD, nx));
     }
     anchors.push(createAnchor(nx, ny, score));
+    maybeSpawnLuxBetweenAnchors(ref, anchors[anchors.length - 1]);
+  }
+
+  function grantLux(amount) {
+    if (amount <= 0) return;
+    totalLux += amount;
+    saveLuxBalance(totalLux);
+  }
+
+  function maybeSpawnLuxBetweenAnchors(fromA, toA) {
+    if (!fromA || !toA) return;
+    if (Math.random() > LUX_SPAWN_CHANCE) return;
+    const u = 0.2 + Math.random() * 0.58;
+    let lx = fromA.x + (toA.x - fromA.x) * u;
+    let ly = fromA.y + (toA.y - fromA.y) * u;
+    lx += (Math.random() - 0.5) * 100;
+    ly += (Math.random() - 0.5) * 82;
+    luxPickups.push({ x: lx, y: ly });
+  }
+
+  function cullLuxPickupsFarBelow() {
+    const threshold = camTop + h + CULL_BELOW_CAMERA;
+    for (let i = luxPickups.length - 1; i >= 0; i--) {
+      if (luxPickups[i].y > threshold) {
+        luxPickups.splice(i, 1);
+      }
+    }
+  }
+
+  function updateLuxPickups() {
+    if (isTerminalState()) return;
+    if (state !== State.ORBITING && state !== State.DASHING) return;
+    for (let i = luxPickups.length - 1; i >= 0; i--) {
+      const p = luxPickups[i];
+      if (dist(px, py, p.x, p.y) <= LUX_COLLECT_DIST) {
+        grantLux(1);
+        sound.playNeonPluck(14);
+        luxPickups.splice(i, 1);
+      }
+    }
+  }
+
+  function drawLuxPickups() {
+    if (luxPickups.length === 0) return;
+    const t = performance.now() * 0.003;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const p of luxPickups) {
+      const pulse = 0.78 + 0.22 * Math.sin(t + p.x * 0.02 + p.y * 0.015);
+      const rGlow = 13 * pulse;
+      ctx.fillStyle = `rgba(255,248,200,${0.32 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rGlow * 1.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,220,100,${0.5 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rGlow, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,235,150,${0.95 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function cullAnchorsFarBelowCamera() {
@@ -602,6 +692,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     score = 0;
     highScoreAtRunStart = highScore;
     anchors.length = 0;
+    luxPickups.length = 0;
     camTop = 0;
     peakPlayerY = Infinity;
     peakSmoothed = Infinity;
@@ -1137,6 +1228,9 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     ctx.shadowBlur = subGlow;
     ctx.fillText('Tap to ascend', cx, titleBaselineY + 44);
     ctx.shadowBlur = 0;
+    ctx.font = '500 13px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,220,150,0.78)';
+    ctx.fillText('Collect golden LUX between the stars', cx, titleBaselineY + 72);
     ctx.restore();
   }
 
@@ -1202,6 +1296,16 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       ctx.font = '800 32px system-ui, sans-serif';
       ctx.fillText(String(highScore), hudPad, y);
       ctx.shadowBlur = 0;
+
+      ctx.textAlign = 'right';
+      ctx.font = '700 13px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,210,120,0.92)';
+      ctx.shadowColor = 'rgba(255,180,60,0.4)';
+      ctx.shadowBlur = 8;
+      ctx.fillText('LUX', w - hudPad, hudTop);
+      ctx.font = '800 32px system-ui, sans-serif';
+      ctx.fillText(String(totalLux), w - hudPad, hudTop + 17);
+      ctx.shadowBlur = 0;
       ctx.restore();
       return;
     }
@@ -1231,10 +1335,15 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       ctx.font = '600 17px system-ui, sans-serif';
       ctx.fillText(`×${comboMultiplier.toFixed(2)} streak`, hudPad, hy);
     }
-    ctx.font = '600 11px system-ui, sans-serif';
     ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,215,100,0.95)';
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.fillText('LUX', w - hudPad, hudTop);
+    ctx.font = '800 20px system-ui, sans-serif';
+    ctx.fillText(String(totalLux), w - hudPad, hudTop + 13);
+    ctx.font = '600 11px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.fillText(pal.label.toUpperCase(), w - hudPad, hudTop);
+    ctx.fillText(pal.label.toUpperCase(), w - hudPad, hudTop + 38);
     if (comboPopupRemain > 0 && comboMultiplier > 1) {
       const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.02);
       ctx.fillStyle = `rgba(255,220,100,${0.75 * pulse})`;
@@ -1257,6 +1366,9 @@ export function startNeonPivot(canvas, uiHooks = {}) {
       ctx.fillStyle = 'rgba(255,255,255,0.78)';
       ctx.font = '500 17px system-ui, sans-serif';
       ctx.fillText(`Score ${score}  —  Tap, touch, or Space to retry`, cx, cy + 12);
+      ctx.fillStyle = 'rgba(255,210,130,0.88)';
+      ctx.font = '600 15px system-ui, sans-serif';
+      ctx.fillText(`LUX ${totalLux}`, cx, cy + 38);
     }
     ctx.restore();
   }
@@ -1369,6 +1481,8 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     }
 
     cullAnchorsFarBelowCamera();
+    updateLuxPickups();
+    cullLuxPickupsFarBelow();
 
     if (!isTerminalState()) {
       pushPositionHistory();
@@ -1442,6 +1556,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     for (let ai = 0; ai < anchors.length; ai += 1) {
       drawAnchor(anchors[ai], ai);
     }
+    drawLuxPickups();
     drawCaptureSparks(ctx, sparkParticles);
     ctx.restore();
 

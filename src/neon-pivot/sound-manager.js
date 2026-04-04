@@ -24,6 +24,8 @@ export function createNeonSoundManager(options = {}) {
 
   let ctx = null;
   let bgmElement = null;
+  /** Pre-created while on title screen so the first tap hits a warm cache. */
+  let bgmPrewarmElement = null;
   let mediaSource = null;
   let lowpass = null;
   let masterGain = null;
@@ -59,9 +61,23 @@ export function createNeonSoundManager(options = {}) {
     return minF * Math.pow(maxF / minF, t);
   }
 
+  function prewarmBgm() {
+    if (bgmPrewarmElement || bgmElement) return;
+    try {
+      const a = new Audio(bgmUrl);
+      a.preload = 'auto';
+      a.crossOrigin = 'anonymous';
+      a.load();
+      bgmPrewarmElement = a;
+    } catch {
+      /* ignore */
+    }
+  }
+
   function setupBgm() {
     if (bgmElement || !ctx) return;
-    bgmElement = new Audio(bgmUrl);
+    bgmElement = bgmPrewarmElement || new Audio(bgmUrl);
+    bgmPrewarmElement = null;
     bgmElement.loop = true;
     bgmElement.crossOrigin = 'anonymous';
     bgmElement.preload = 'auto';
@@ -80,6 +96,9 @@ export function createNeonSoundManager(options = {}) {
   }
 
   return {
+    /** Start fetching/decoding BGM before any user gesture (title screen). */
+    prewarmBgm,
+
     /** Call after a user gesture (pointer/touch). Starts AudioContext + BGM. */
     async resume() {
       const c = ensureContext();

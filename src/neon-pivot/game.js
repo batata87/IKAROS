@@ -183,6 +183,7 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   let score = 0;
   /** Title screen animation clock (orbit + subtitle pulse). */
   let titleMenuPhase = 0;
+  let titleBgmPrewarmDone = false;
   let menuUiModePrev = /** @type {'title' | 'game' | null} */ (null);
 
   function syncMenuUiMode() {
@@ -1275,6 +1276,10 @@ export function startNeonPivot(canvas, uiHooks = {}) {
 
     if (isTitleState()) {
       titleMenuPhase += dt;
+      if (!titleBgmPrewarmDone) {
+        titleBgmPrewarmDone = true;
+        sound.prewarmBgm();
+      }
       drawScreenBackdrop(ctx, w, h, 0);
       drawSunScreenTop();
       drawTitleScreen(titleMenuPhase);
@@ -1461,12 +1466,17 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     if (restartCooldownSec > 0) return;
     if (isTitleState()) {
       restartCooldownSec = 0.35;
-      initWorld();
+      /* Defer heavy init so BGM play() can start in the same gesture before decode + sim spike. */
+      requestAnimationFrame(() => {
+        initWorld();
+      });
       return;
     }
     if (isTerminalState()) {
       restartCooldownSec = 0.4;
-      initWorld();
+      requestAnimationFrame(() => {
+        initWorld();
+      });
       return;
     }
     releaseDash();
@@ -1488,12 +1498,16 @@ export function startNeonPivot(canvas, uiHooks = {}) {
     if (restartCooldownSec > 0) return;
     if (isTitleState()) {
       restartCooldownSec = 0.35;
-      initWorld();
+      requestAnimationFrame(() => {
+        initWorld();
+      });
       return;
     }
     if (isTerminalState()) {
       restartCooldownSec = 0.4;
-      initWorld();
+      requestAnimationFrame(() => {
+        initWorld();
+      });
       return;
     }
     if (state === State.ORBITING) {
@@ -1504,4 +1518,11 @@ export function startNeonPivot(canvas, uiHooks = {}) {
   /* Paint immediately so the first frame is not delayed until the next display refresh. */
   frameSafe(performance.now());
   requestAnimationFrame(frameSafe);
+
+  return {
+    /** Use on any UI pointer gesture so BGM can start on the welcome screen (autoplay policy). */
+    primeAudio() {
+      void sound.resume();
+    },
+  };
 }

@@ -1,3 +1,4 @@
+@tool
 extends EditorScript
 ## Run once from the script editor (File → Run): creates res://icons/*.png
 ## from the same geometry as res://icon.svg (no Python required).

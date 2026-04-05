@@ -9,12 +9,14 @@ signal vault_closed
 
 func _ready() -> void:
 	visible = false
+	process_mode = Node.PROCESS_MODE_DISABLED
 	CurrencyManager.lux_changed.connect(_on_lux_changed)
 	ItemDatabase.equipped_changed.connect(_on_equipped_changed)
 	_on_lux_changed(CurrencyManager.lux)
 
 
 func open_vault() -> void:
+	process_mode = Node.PROCESS_MODE_INHERIT
 	visible = true
 	_rebuild_list()
 	_on_lux_changed(CurrencyManager.lux)
@@ -22,6 +24,7 @@ func open_vault() -> void:
 
 func _on_back() -> void:
 	visible = false
+	process_mode = Node.PROCESS_MODE_DISABLED
 	vault_closed.emit()
 
 

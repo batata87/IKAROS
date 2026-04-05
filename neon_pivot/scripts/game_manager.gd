@@ -18,7 +18,7 @@ const COMBO_ORBIT_MAX_SEC: float = 0.5
 const MAX_MULTIPLIER_STACK: int = 10
 const MULT_PER_COMBO: float = 0.2
 const REVIEW_SCORE_THRESHOLD: int = 50
-const SAVE_PATH := "user://neon_pivot_save.cfg"
+const SAVE_PATH := "user://ikaros_save.cfg"
 const SAVE_SEC := "game"
 
 var state: GameState = GameState.IDLE
@@ -158,6 +158,11 @@ func _save_high_score_if_needed() -> void:
 func load_high_score() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(SAVE_PATH) != OK:
+		var legacy := "user://neon_pivot_save.cfg"
+		if cf.load(legacy) == OK:
+			high_score = int(cf.get_value(SAVE_SEC, "high_score", 0))
+			store_review_prompted = bool(cf.get_value(SAVE_SEC, "store_review_prompted_v1", false))
+			cf.save(SAVE_PATH)
 		return
 	high_score = int(cf.get_value(SAVE_SEC, "high_score", 0))
 	store_review_prompted = bool(cf.get_value(SAVE_SEC, "store_review_prompted_v1", false))

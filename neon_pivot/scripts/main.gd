@@ -30,6 +30,7 @@ func _ready() -> void:
 
 func _on_play_pressed() -> void:
 	main_menu.visible = false
+	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	level_gen.setup(player)
@@ -40,10 +41,12 @@ func _on_play_pressed() -> void:
 func _on_vault_pressed() -> void:
 	store_screen.open_vault()
 	main_menu.visible = false
+	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _on_vault_closed() -> void:
 	main_menu.visible = true
+	main_menu.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func _on_lux_changed(balance: int) -> void:

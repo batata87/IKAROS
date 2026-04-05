@@ -167,11 +167,23 @@ func _update_camera_zoom(delta: float) -> void:
 	_cam.zoom = Vector2(zz, zz)
 
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch and event.pressed:
-		_on_tap()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_on_tap()
+func _unhandled_input(event: InputEvent) -> void:
+	if not _is_tap_event(event):
+		return
+	_on_tap()
+	get_viewport().set_input_as_handled()
+
+
+func _is_tap_event(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var st := event as InputEventScreenTouch
+		return st.pressed and st.index == 0
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		return not DisplayServer.is_touchscreen_available()
+	return false
 
 
 func _on_tap() -> void:
@@ -190,7 +202,7 @@ func _on_tap() -> void:
 func _attach_to_initial_anchor() -> void:
 	var lg := get_parent().get_node_or_null("LevelGenerator") as NeonLevelGenerator
 	if lg == null or lg.get_child_count() == 0:
-		push_warning("Neon Pivot: LevelGenerator has no anchors yet.")
+		push_warning("IKAROS: LevelGenerator has no anchors yet.")
 		return
 	_anchor = lg.get_child(0) as NeonAnchor
 	_orbit_angle = PI * 0.5

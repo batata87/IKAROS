@@ -18,8 +18,9 @@ color = Color(1, 0.35, 0.75, 1)
 [node name="CoyoteBurst" type="GPUParticles2D"]
 z_index = 40
 emitting = false
-amount = 56
-lifetime = 0.42
+amount = 38
+lifetime = 0.4
+fixed_fps = 60
 one_shot = true
 explosiveness = 0.92
 randomness = 0.35

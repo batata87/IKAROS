@@ -52,6 +52,7 @@ func _ready() -> void:
 	ItemDatabase.equipped_changed.connect(_on_equipped_theme)
 	var c: Array = ItemDatabase.peek_equipped_theme()
 	_on_equipped_theme(c[0], c[1], c[2], c[3])
+	_configure_trail_performance()
 	queue_redraw()
 
 
@@ -62,6 +63,22 @@ func _on_equipped_theme(pf: Color, pr: Color, _ar: Color, _ac: Color) -> void:
 		var pm := trail_particles.process_material as ParticleProcessMaterial
 		pm.color = Color(pr.r, pr.g, pr.b, 0.55)
 	queue_redraw()
+
+
+func _configure_trail_performance() -> void:
+	if trail_particles == null:
+		return
+	var hz := DisplayServer.get_screen_refresh_rate()
+	if hz <= 0.0:
+		hz = 60.0
+	var high_refresh := hz >= 90.0
+	var mobile := OS.has_feature("mobile")
+	if mobile:
+		trail_particles.amount = mini(trail_particles.amount, 26)
+		trail_particles.fixed_fps = 45 if high_refresh else 30
+	else:
+		trail_particles.amount = mini(trail_particles.amount, 34)
+		trail_particles.fixed_fps = 60 if high_refresh else 0
 
 
 func get_overdrive_speed_hint() -> float:

@@ -34,9 +34,10 @@ width = 2.0
 default_color = Color(1, 1, 1, 0.22)
 
 [node name="TrailParticles" type="GPUParticles2D" parent="."]
-amount = 40
-lifetime = 0.4
+amount = 34
+lifetime = 0.38
 emitting = false
+fixed_fps = 0
 process_material = SubResource("ParticleProcessMaterial_trail")
 
 [node name="ChargeBlip" type="AudioStreamPlayer" parent="."]

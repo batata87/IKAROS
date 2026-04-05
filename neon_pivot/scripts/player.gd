@@ -68,7 +68,7 @@ func _on_equipped_theme(pf: Color, pr: Color, _ar: Color, _ac: Color) -> void:
 func _configure_trail_performance() -> void:
 	if trail_particles == null:
 		return
-	var hz := DisplayServer.get_screen_refresh_rate()
+	var hz: float = DisplayServer.screen_get_refresh_rate()
 	if hz <= 0.0:
 		hz = 60.0
 	var high_refresh := hz >= 90.0

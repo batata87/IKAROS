@@ -112,7 +112,7 @@ func _apply_mobile_fps_target() -> void:
 	if not OS.has_feature("mobile"):
 		Engine.max_fps = 0
 		return
-	var hz := DisplayServer.get_screen_refresh_rate()
+	var hz: float = DisplayServer.screen_get_refresh_rate()
 	if hz <= 0.0:
 		Engine.max_fps = 60
 	elif hz >= 119.0:
@@ -133,8 +133,10 @@ func _maybe_request_store_review_first_time() -> void:
 
 
 func _deferred_request_store_review() -> void:
-	if OS.has_feature("ios") or OS.has_feature("android"):
-		OS.request_review()
+	if not (OS.has_feature("ios") or OS.has_feature("android")):
+		return
+	if OS.has_method("request_review"):
+		OS.call("request_review")
 
 
 func _save_review_flag() -> void:

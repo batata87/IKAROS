@@ -64,9 +64,12 @@ func _on_submit() -> void:
 		return
 
 	var name_s := _name_edit.text.strip_edges()
-	var body := "form-name=%s&message=%s" % [FORM_NAME.uri_encode(), msg.uri_encode()]
+	var enc_form := str(FORM_NAME).uri_encode()
+	var enc_msg := str(msg).uri_encode()
+	var body := "form-name=%s&message=%s" % [enc_form, enc_msg]
 	if not name_s.is_empty():
-		body += "&name=%s" % name_s.uri_encode()
+		var enc_name := str(name_s).uri_encode()
+		body += "&name=%s" % enc_name
 
 	var headers := PackedStringArray([
 		"Content-Type: application/x-www-form-urlencoded",

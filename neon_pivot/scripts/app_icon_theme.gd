@@ -6,14 +6,18 @@ const PATH_DARK := "res://icons/app_icon_dark.png"
 
 
 func _ready() -> void:
-	if DisplayServer.has_signal("theme_changed"):
-		DisplayServer.theme_changed.connect(apply_window_icon)
+	if DisplayServer.has_method("set_system_theme_change_callback"):
+		DisplayServer.set_system_theme_change_callback(Callable(self, "_on_system_theme_changed"))
 	apply_window_icon()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_THEME_CHANGED:
-		call_deferred("apply_window_icon")
+func _exit_tree() -> void:
+	if DisplayServer.has_method("set_system_theme_change_callback"):
+		DisplayServer.set_system_theme_change_callback(Callable())
+
+
+func _on_system_theme_changed() -> void:
+	call_deferred("apply_window_icon")
 
 
 func apply_window_icon() -> void:

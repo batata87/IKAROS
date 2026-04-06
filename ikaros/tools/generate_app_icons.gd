@@ -1,7 +1,7 @@
 @tool
 extends EditorScript
-## Run once from the script editor (File → Run): creates res://icons/*.png
-## from the same geometry as res://icon.svg (no Python required).
+## Run once from the script editor (File → Run): creates res://icons/*.png.
+## PNG-only pipeline for iOS icons and storyboard launch images.
 
 const OUT_DIR := "res://icons"
 

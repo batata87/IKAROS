@@ -37,6 +37,7 @@ var _vib_phase: float = 0.0
 var _coyote_armed: bool = false
 var _coyote_used: bool = false
 var _hum_phase: float = 0.0
+var _last_tap_msec: int = -1000
 
 
 func _ready() -> void:
@@ -167,9 +168,13 @@ func _update_camera_zoom(delta: float) -> void:
 	_cam.zoom = Vector2(zz, zz)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if not _is_tap_event(event):
 		return
+	var now := Time.get_ticks_msec()
+	if now - _last_tap_msec < 80:
+		return
+	_last_tap_msec = now
 	_on_tap()
 	get_viewport().set_input_as_handled()
 
@@ -177,7 +182,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _is_tap_event(event: InputEvent) -> bool:
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
-		return st.pressed and st.index == 0
+		return st.pressed
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:

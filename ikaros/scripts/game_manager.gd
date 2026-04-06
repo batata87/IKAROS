@@ -158,11 +158,6 @@ func _save_high_score_if_needed() -> void:
 func load_high_score() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(SAVE_PATH) != OK:
-		var legacy := "user://neon_pivot_save.cfg"
-		if cf.load(legacy) == OK:
-			high_score = int(cf.get_value(SAVE_SEC, "high_score", 0))
-			store_review_prompted = bool(cf.get_value(SAVE_SEC, "store_review_prompted_v1", false))
-			cf.save(SAVE_PATH)
 		return
 	high_score = int(cf.get_value(SAVE_SEC, "high_score", 0))
 	store_review_prompted = bool(cf.get_value(SAVE_SEC, "store_review_prompted_v1", false))

@@ -31,17 +31,13 @@ import {
 } from './haptics.js';
 
 const STORAGE_KEY = 'ikaros_web_hi';
-const LEGACY_STORAGE_KEY = 'neon_pivot_web_hi';
 const LUX_STORAGE_KEY = 'ikaros_web_lux';
 const ORBIT_SCALE_RESET_SEC = 1.5;
 const COMBO_CAPTURE_WINDOW_SEC = 0.5;
 
 function loadHi() {
   try {
-    const raw =
-      localStorage.getItem(STORAGE_KEY) ||
-      localStorage.getItem(LEGACY_STORAGE_KEY) ||
-      '0';
+    const raw = localStorage.getItem(STORAGE_KEY) || '0';
     return Math.max(0, parseInt(raw, 10) || 0);
   } catch {
     return 0;

@@ -5,11 +5,11 @@
 
 # Old second entry / bookmarks → home
 [[redirects]]
-  from = "/neon-pivot"
+  from = "/ikaros"
   to = "/"
   status = 301
 
 [[redirects]]
-  from = "/neon-pivot.html"
+  from = "/ikaros.html"
   to = "/"
   status = 301

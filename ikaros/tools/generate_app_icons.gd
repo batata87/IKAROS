@@ -13,9 +13,17 @@ func _run() -> void:
 	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_icon_light.png")
 	_save_png(_raster_icon(1024, true), OUT_DIR + "/app_icon_dark.png")
 	_save_png(_raster_icon(58, false), OUT_DIR + "/ios_settings_58.png")
+	# iOS launch storyboard images (explicit 2x/3x).
+	_save_png(_raster_icon(2048, false), OUT_DIR + "/launch_image_2x.png")
+	_save_png(_raster_icon(3072, false), OUT_DIR + "/launch_image_3x.png")
 
 	get_editor_interface().get_resource_filesystem().scan()
-	print("App icons written to ", OUT_DIR, " — set iOS export slot settings_58x58 to res://icons/ios_settings_58.png")
+	print(
+		"App assets written to ", OUT_DIR,
+		" — iOS export: settings_58x58=res://icons/ios_settings_58.png, ",
+		"storyboard/custom_image@2x=res://icons/launch_image_2x.png, ",
+		"storyboard/custom_image@3x=res://icons/launch_image_3x.png"
+	)
 
 
 func _save_png(img: Image, res_path: String) -> void:
@@ -25,11 +33,14 @@ func _save_png(img: Image, res_path: String) -> void:
 
 
 func _raster_icon(size: int, dark: bool) -> Image:
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	# Supersample then downscale for smoother icon edges on iOS.
+	var ss := 4
+	var work_size := size * ss
+	var img := Image.create(work_size, work_size, false, Image.FORMAT_RGBA8)
 	var bg := Color(0.05, 0.05, 0.08, 1.0) if dark else Color.BLACK
 	img.fill(bg)
 
-	var s := float(size)
+	var s := float(work_size)
 	var cx := 0.5 * s
 	var cy := 0.5 * s
 	var r_ring := 36.0 / 128.0 * s
@@ -39,8 +50,8 @@ func _raster_icon(size: int, dark: bool) -> Image:
 	var dot_r := 10.0 / 128.0 * s
 	var dot_col := Color(0.85, 0.0, 0.85, 1.0) if dark else Color(1.0, 0.0, 1.0, 1.0)
 
-	for y in size:
-		for x in size:
+	for y in work_size:
+		for x in work_size:
 			var px := float(x) + 0.5
 			var py := float(y) + 0.5
 			var dx := px - cx
@@ -54,4 +65,5 @@ func _raster_icon(size: int, dark: bool) -> Image:
 			if dx2 * dx2 + dy2 * dy2 <= dot_r * dot_r:
 				img.set_pixel(x, y, dot_col)
 
+	img.resize(size, size, Image.INTERPOLATE_LANCZOS)
 	return img

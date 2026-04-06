@@ -5,7 +5,7 @@ dist
 *.log
 .netlify
 
-# Godot (Neon Pivot)
-neon_pivot/.godot/
-neon_pivot/**/*.import
-neon_pivot/**/.import/
+# Godot (IKAROS)
+ikaros/.godot/
+ikaros/**/*.import
+ikaros/**/.import/

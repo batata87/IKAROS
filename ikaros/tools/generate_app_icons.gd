@@ -10,19 +10,41 @@ func _run() -> void:
 	var abs_dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(abs_dir)
 
+	# App icon base files.
 	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_icon_light.png")
 	_save_png(_raster_icon(1024, true), OUT_DIR + "/app_icon_dark.png")
+
+	# iOS export field-friendly names (Icons section).
+	_save_png(_raster_icon(1024, false), OUT_DIR + "/icon_1024x1024.png")
+	_save_png(_raster_icon(1024, true), OUT_DIR + "/icon_1024x1024_dark.png")
+	_save_png(_raster_icon(1024, false), OUT_DIR + "/icon_1024x1024_tinted.png")
+	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_store_1024x1024.png")
+	_save_png(_raster_icon(1024, true), OUT_DIR + "/app_store_1024x1024_dark.png")
+	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_store_1024x1024_tinted.png")
+
+	# Required small settings icon slot.
+	_save_png(_raster_icon(58, false), OUT_DIR + "/settings_58x58.png")
 	_save_png(_raster_icon(58, false), OUT_DIR + "/ios_settings_58.png")
+
 	# iOS launch storyboard images (explicit 2x/3x).
+	_save_png(_raster_icon(2048, false), OUT_DIR + "/custom_image_2x.png")
+	_save_png(_raster_icon(3072, false), OUT_DIR + "/custom_image_3x.png")
 	_save_png(_raster_icon(2048, false), OUT_DIR + "/launch_image_2x.png")
 	_save_png(_raster_icon(3072, false), OUT_DIR + "/launch_image_3x.png")
 
 	get_editor_interface().get_resource_filesystem().scan()
 	print(
 		"App assets written to ", OUT_DIR,
-		" — iOS export: settings_58x58=res://icons/ios_settings_58.png, ",
-		"storyboard/custom_image@2x=res://icons/launch_image_2x.png, ",
-		"storyboard/custom_image@3x=res://icons/launch_image_3x.png"
+		" — iOS export mapping: ",
+		"Icon 1024x1024=res://icons/icon_1024x1024.png, ",
+		"Icon 1024x1024 Dark=res://icons/icon_1024x1024_dark.png, ",
+		"Icon 1024x1024 Tinted=res://icons/icon_1024x1024_tinted.png, ",
+		"App Store 1024x1024=res://icons/app_store_1024x1024.png, ",
+		"App Store 1024x1024 Dark=res://icons/app_store_1024x1024_dark.png, ",
+		"App Store 1024x1024 Tinted=res://icons/app_store_1024x1024_tinted.png, ",
+		"settings_58x58=res://icons/settings_58x58.png, ",
+		"storyboard/custom_image@2x=res://icons/custom_image_2x.png, ",
+		"storyboard/custom_image@3x=res://icons/custom_image_3x.png"
 	)
 
 

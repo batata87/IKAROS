@@ -98,6 +98,10 @@ func trigger_capture_haptic() -> void:
 func trigger_haptic(duration_ms: int, amplitude: float = -1.0) -> void:
 	if not (OS.has_feature("android") or OS.has_feature("ios")):
 		return
+	# iOS may log haptic engine errors on unsupported hardware/runtime states.
+	# Keep gameplay clean by only using vibrate_handheld on Android.
+	if OS.has_feature("ios"):
+		return
 	if OS.has_feature("android") and amplitude >= 0.0:
 		Input.vibrate_handheld(duration_ms, clampf(amplitude, 0.0, 1.0))
 	else:

@@ -38,6 +38,8 @@ var _coyote_armed: bool = false
 var _coyote_used: bool = false
 var _hum_phase: float = 0.0
 var _last_tap_msec: int = -1000
+var _pointer_was_down: bool = false
+var _ignore_capture_anchor: NeonAnchor = null
 
 
 func _ready() -> void:
@@ -129,6 +131,7 @@ func initialize_after_level() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_poll_mobile_pointer_tap()
 	if GameManager.state == GameManager.GameState.GAMEOVER:
 		velocity = Vector2.ZERO
 		if _ghost_line:
@@ -156,6 +159,18 @@ func _physics_process(delta: float) -> void:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
 	queue_redraw()
+
+
+func _poll_mobile_pointer_tap() -> void:
+	if not OS.has_feature("mobile"):
+		return
+	var pointer_down := (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
+	if pointer_down and not _pointer_was_down:
+		var now := Time.get_ticks_msec()
+		if now - _last_tap_msec >= 80:
+			_last_tap_msec = now
+			_on_tap()
+	_pointer_was_down = pointer_down
 
 
 func _update_camera_zoom(delta: float) -> void:
@@ -292,6 +307,7 @@ func _centrifugal_launch_mult() -> float:
 func _release_dash() -> void:
 	if _anchor == null:
 		return
+	_ignore_capture_anchor = _anchor
 	var t_orbit := GameManager.get_time_in_current_orbit()
 	GameManager.on_dash_started(t_orbit)
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
@@ -304,6 +320,14 @@ func _release_dash() -> void:
 	GameManager.set_game_state(GameManager.GameState.DASHING)
 	if trail_particles:
 		trail_particles.emitting = true
+
+
+func _release_capture_ignore_if_exited() -> void:
+	if _ignore_capture_anchor == null or not is_instance_valid(_ignore_capture_anchor):
+		_ignore_capture_anchor = null
+		return
+	if not _ignore_capture_anchor.contains_point_global(global_position):
+		_ignore_capture_anchor = null
 
 
 func _emergency_dash_to_nearest_anchor() -> void:
@@ -340,6 +364,7 @@ func _spawn_coyote_fx() -> void:
 
 
 func _physics_dash(delta: float) -> void:
+	_release_capture_ignore_if_exited()
 	var col := move_and_collide(velocity * delta)
 	if col:
 		GameManager.trigger_fail()
@@ -351,13 +376,21 @@ func _physics_dash(delta: float) -> void:
 
 
 func _try_capture_anchor() -> void:
+	var best: NeonAnchor = null
+	var best_d2 := INF
 	for n in get_tree().get_nodes_in_group("anchors"):
 		var a := n as NeonAnchor
-		if a == null:
+		if a == null or not is_instance_valid(a):
+			continue
+		if _ignore_capture_anchor != null and a == _ignore_capture_anchor:
 			continue
 		if a.contains_point_global(global_position):
-			_capture_anchor(a)
-			return
+			var d2 := global_position.distance_squared_to(a.global_position)
+			if d2 < best_d2:
+				best_d2 = d2
+				best = a
+	if best != null:
+		_capture_anchor(best)
 
 
 func _spawn_score_pop(at: Vector2, points: int, combo_style: bool) -> void:

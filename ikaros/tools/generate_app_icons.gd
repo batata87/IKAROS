@@ -10,27 +10,32 @@ func _run() -> void:
 	var abs_dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(abs_dir)
 
+	# Generate only two master images, then resize copies.
+	# (Huge direct renders like 3072*4 can freeze the editor.)
+	var base_light := _raster_icon(1024, false)
+	var base_dark := _raster_icon(1024, true)
+
 	# App icon base files.
-	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_icon_light.png")
-	_save_png(_raster_icon(1024, true), OUT_DIR + "/app_icon_dark.png")
+	_save_png(base_light, OUT_DIR + "/app_icon_light.png")
+	_save_png(base_dark, OUT_DIR + "/app_icon_dark.png")
 
 	# iOS export field-friendly names (Icons section).
-	_save_png(_raster_icon(1024, false), OUT_DIR + "/icon_1024x1024.png")
-	_save_png(_raster_icon(1024, true), OUT_DIR + "/icon_1024x1024_dark.png")
-	_save_png(_raster_icon(1024, false), OUT_DIR + "/icon_1024x1024_tinted.png")
-	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_store_1024x1024.png")
-	_save_png(_raster_icon(1024, true), OUT_DIR + "/app_store_1024x1024_dark.png")
-	_save_png(_raster_icon(1024, false), OUT_DIR + "/app_store_1024x1024_tinted.png")
+	_save_png(base_light, OUT_DIR + "/icon_1024x1024.png")
+	_save_png(base_dark, OUT_DIR + "/icon_1024x1024_dark.png")
+	_save_png(base_light, OUT_DIR + "/icon_1024x1024_tinted.png")
+	_save_png(base_light, OUT_DIR + "/app_store_1024x1024.png")
+	_save_png(base_dark, OUT_DIR + "/app_store_1024x1024_dark.png")
+	_save_png(base_light, OUT_DIR + "/app_store_1024x1024_tinted.png")
 
 	# Required small settings icon slot.
-	_save_png(_raster_icon(58, false), OUT_DIR + "/settings_58x58.png")
-	_save_png(_raster_icon(58, false), OUT_DIR + "/ios_settings_58.png")
+	_save_png(_scaled_copy(base_light, 58), OUT_DIR + "/settings_58x58.png")
+	_save_png(_scaled_copy(base_light, 58), OUT_DIR + "/ios_settings_58.png")
 
 	# iOS launch storyboard images (explicit 2x/3x).
-	_save_png(_raster_icon(2048, false), OUT_DIR + "/custom_image_2x.png")
-	_save_png(_raster_icon(3072, false), OUT_DIR + "/custom_image_3x.png")
-	_save_png(_raster_icon(2048, false), OUT_DIR + "/launch_image_2x.png")
-	_save_png(_raster_icon(3072, false), OUT_DIR + "/launch_image_3x.png")
+	_save_png(_scaled_copy(base_light, 2048), OUT_DIR + "/custom_image_2x.png")
+	_save_png(_scaled_copy(base_light, 3072), OUT_DIR + "/custom_image_3x.png")
+	_save_png(_scaled_copy(base_light, 2048), OUT_DIR + "/launch_image_2x.png")
+	_save_png(_scaled_copy(base_light, 3072), OUT_DIR + "/launch_image_3x.png")
 
 	get_editor_interface().get_resource_filesystem().scan()
 	print(
@@ -52,6 +57,12 @@ func _save_png(img: Image, res_path: String) -> void:
 	var err := img.save_png(ProjectSettings.globalize_path(res_path))
 	if err != OK:
 		push_error("save_png failed %s: %s" % [res_path, str(err)])
+
+
+func _scaled_copy(src: Image, size: int) -> Image:
+	var out := src.duplicate()
+	out.resize(size, size, Image.INTERPOLATE_LANCZOS)
+	return out
 
 
 func _raster_icon(size: int, dark: bool) -> Image:

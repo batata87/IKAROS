@@ -8,6 +8,7 @@ extends Node2D
 @onready var lbl_lux: Label = $CanvasLayer/HUD/LuxBalance
 @onready var main_menu: Control = $CanvasLayer/MainMenu
 @onready var store_screen = $CanvasLayer/StoreScreen
+var _run_started: bool = false
 
 
 func _ready() -> void:
@@ -28,7 +29,31 @@ func _ready() -> void:
 	_on_lux_changed(CurrencyManager.lux)
 
 
-func _on_play_pressed() -> void:
+func _unhandled_input(event: InputEvent) -> void:
+	if not main_menu.visible:
+		return
+	if _run_started:
+		return
+	if store_screen != null and store_screen.visible:
+		return
+	if _is_tap_event(event):
+		_start_run()
+		get_viewport().set_input_as_handled()
+
+
+func _is_tap_event(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		return (event as InputEventScreenTouch).pressed
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		return mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
+	return false
+
+
+func _start_run() -> void:
+	if _run_started:
+		return
+	_run_started = true
 	main_menu.visible = false
 	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
@@ -36,6 +61,10 @@ func _on_play_pressed() -> void:
 	level_gen.setup(player)
 	player.initialize_after_level()
 	_refresh_hud()
+
+
+func _on_play_pressed() -> void:
+	_start_run()
 
 
 func _on_vault_pressed() -> void:
@@ -47,6 +76,7 @@ func _on_vault_pressed() -> void:
 func _on_vault_closed() -> void:
 	main_menu.visible = true
 	main_menu.process_mode = Node.PROCESS_MODE_INHERIT
+	_run_started = false
 
 
 func _on_lux_changed(balance: int) -> void:

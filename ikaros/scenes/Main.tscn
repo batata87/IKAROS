@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/level_generator.gd" id="2_levelgen"]
@@ -8,6 +8,7 @@
 [ext_resource type="Shader" path="res://shaders/chromatic_aberration.gdshader" id="6_chromatic_shader"]
 [ext_resource type="Script" path="res://scripts/screen_juice.gd" id="7_screen_juice"]
 [ext_resource type="Script" path="res://scripts/starfield_bg.gd" id="8_starfield"]
+[ext_resource type="Script" path="res://scripts/title_menu_fx.gd" id="9_title_fx"]
 
 [sub_resource type="Environment" id="Environment_neon"]
 background_mode = 0
@@ -103,6 +104,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("9_title_fx")
 
 [node name="MenuBg" type="ColorRect" parent="CanvasLayer/MainMenu"]
 layout_mode = 1
@@ -129,7 +131,7 @@ alignment = 1
 [node name="Title" type="Label" parent="CanvasLayer/MainMenu/Center/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 1, 1, 1)
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 88
 text = "IKAROS"
 horizontal_alignment = 1
 

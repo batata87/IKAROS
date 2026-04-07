@@ -6,10 +6,14 @@ extends Node2D
 @export var visual_radius: float = 48.0
 @export var orbit_radius: float = 90.0
 @export var rotation_speed: float = 1.2
+@export var shrink_enabled: bool = true
+@export var orbit_shrink_per_sec: float = 8.0
+@export var min_orbit_radius: float = 54.0
 @export var ring_color: Color = Color(0.0, 1.0, 1.0, 0.85)
 @export var core_color: Color = Color(1.0, 0.0, 1.0, 0.35)
 
 var _pulse_tween: Tween
+var _active_orbit_anchor: bool = false
 
 
 func _ready() -> void:
@@ -31,10 +35,23 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, visual_radius * 0.12, core_color)
 
 
+func _process(delta: float) -> void:
+	if not shrink_enabled or not _active_orbit_anchor:
+		return
+	var next_orbit := maxf(min_orbit_radius, orbit_radius - orbit_shrink_per_sec * delta)
+	if is_equal_approx(next_orbit, orbit_radius):
+		return
+	orbit_radius = next_orbit
+	capture_radius = orbit_radius + 28.0
+	visual_radius = orbit_radius * 0.52
+	queue_redraw()
+
+
 func apply_difficulty(score: int) -> void:
 	var t: float = clamp(float(score) / 500.0, 0.0, 1.0)
 	orbit_radius = lerpf(95.0, 55.0, t)
 	capture_radius = orbit_radius + 28.0
+	visual_radius = orbit_radius * 0.52
 	rotation_speed = lerpf(1.0, 2.6, t)
 
 
@@ -49,3 +66,7 @@ func play_capture_squash() -> void:
 
 func contains_point_global(p: Vector2) -> bool:
 	return p.distance_to(global_position) <= capture_radius
+
+
+func set_active_orbit_anchor(active: bool) -> void:
+	_active_orbit_anchor = active

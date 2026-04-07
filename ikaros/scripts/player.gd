@@ -225,6 +225,8 @@ func _attach_to_initial_anchor() -> void:
 		push_warning("IKAROS: LevelGenerator has no anchors yet.")
 		return
 	_anchor = lg.get_child(0) as NeonAnchor
+	if _anchor:
+		_anchor.set_active_orbit_anchor(true)
 	_orbit_angle = PI * 0.5
 	global_position = _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
 	_reset_centrifugal()
@@ -307,6 +309,7 @@ func _centrifugal_launch_mult() -> float:
 func _release_dash() -> void:
 	if _anchor == null:
 		return
+	_anchor.set_active_orbit_anchor(false)
 	_ignore_capture_anchor = _anchor
 	var t_orbit := GameManager.get_time_in_current_orbit()
 	GameManager.on_dash_started(t_orbit)
@@ -411,6 +414,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	GameManager.trigger_capture_haptic()
 	velocity = Vector2.ZERO
 	_anchor = a
+	_anchor.set_active_orbit_anchor(true)
 	_orbit_angle = (global_position - a.global_position).angle()
 	global_position = a.global_position + Vector2(a.orbit_radius, 0.0).rotated(_orbit_angle)
 	GameManager.on_anchor_captured(1)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/level_generator.gd" id="2_levelgen"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/feedback_system.gd" id="5_feedback"]
 [ext_resource type="Shader" path="res://shaders/chromatic_aberration.gdshader" id="6_chromatic_shader"]
 [ext_resource type="Script" path="res://scripts/screen_juice.gd" id="7_screen_juice"]
+[ext_resource type="Script" path="res://scripts/starfield_bg.gd" id="8_starfield"]
 
 [sub_resource type="Environment" id="Environment_neon"]
 background_mode = 0
@@ -22,6 +23,9 @@ shader_parameter/aberration_strength = 0.0
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="Starfield" type="Node2D" parent="."]
+script = ExtResource("8_starfield")
 
 [node name="FeedbackSystem" type="Node" parent="."]
 script = ExtResource("5_feedback")

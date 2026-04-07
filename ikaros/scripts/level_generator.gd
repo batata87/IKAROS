@@ -24,7 +24,8 @@ func setup(player: Node2D) -> void:
 	_forward_hint = Vector2.UP
 	var first: NeonAnchor = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
-	# Second anchor ahead so there is always a target after first dash
+	# Keep at least two targets ahead at run start so jumps never feel blind.
+	_queue_spawn_ahead()
 	_queue_spawn_ahead()
 
 
@@ -81,9 +82,13 @@ func _try_spawn_ahead() -> void:
 		if n is Node2D:
 			nearest = minf(nearest, n.global_position.distance_to(_player.global_position))
 	var need_more := nearest > spawn_ahead_min * 0.85
+	# Also keep extending when player approaches the currently spawned frontier.
+	var dist_to_frontier := _player.global_position.distance_to(_last_spawn_anchor_pos)
+	if not need_more and dist_to_frontier < spawn_ahead_max * 1.05:
+		need_more = true
 	if need_more:
 		_queue_spawn_ahead()
-		_spawn_cooldown_sec = 0.5
+		_spawn_cooldown_sec = 0.3
 
 
 func _cull_distant() -> void:

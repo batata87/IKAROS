@@ -39,9 +39,9 @@ func _run() -> void:
 
 	var storyboard_note := ""
 	if _export_storyboard_from_netlify_splash():
-		storyboard_note = "Storyboard PNGs from res://assets/splash_loading.png (Netlify art). "
+		storyboard_note = "Storyboard PNGs from res://assets/splash_loading.jpg or .png (Netlify art). "
 	else:
-		storyboard_note = "Storyboard PNGs from procedural icon (no assets/splash_loading.png). "
+		storyboard_note = "Storyboard PNGs from procedural icon (no usable splash_loading.jpg/.png). "
 
 	get_editor_interface().get_resource_filesystem().scan()
 	print(
@@ -72,14 +72,22 @@ func _scaled_copy(src: Image, size: int) -> Image:
 	return out
 
 
-## If `res://assets/splash_loading.png` exists (same art as Netlify), use it for iOS storyboard slots.
+## If splash art exists (same as Netlify), use it for iOS storyboard slots.
+## Supports `.jpg` or `.png` (some exports accidentally save JPEG bytes with a `.png` name).
 func _export_storyboard_from_netlify_splash() -> bool:
-	var res_path := "res://assets/splash_loading.png"
-	if not FileAccess.file_exists(ProjectSettings.globalize_path(res_path)):
-		return false
-	var img := Image.new()
-	if img.load(ProjectSettings.globalize_path(res_path)) != OK:
-		return false
+	for res_path in ["res://assets/splash_loading.jpg", "res://assets/splash_loading.png"]:
+		var img := _load_splash_image(res_path)
+		if img != null:
+			_write_storyboard_sizes(img)
+			return true
+	push_warning(
+		"IKAROS: No usable splash at res://assets/splash_loading.jpg (or .png). "
+		+ "If you see 'Not a PNG', the file may be JPEG — use .jpg extension or a real PNG."
+	)
+	return false
+
+
+func _write_storyboard_sizes(img: Image) -> void:
 	var i2 := img.duplicate()
 	i2.resize(828, 1792, Image.INTERPOLATE_LANCZOS)
 	_save_png(i2, OUT_DIR + "/custom_image_2x.png")
@@ -90,7 +98,35 @@ func _export_storyboard_from_netlify_splash() -> bool:
 	_save_png(i3, OUT_DIR + "/custom_image_3x.png")
 	_save_png(i3, OUT_DIR + "/launch_image_3x.png")
 	_save_png(i3, OUT_DIR + "/storyboard_custom_3x.png")
-	return true
+
+
+func _load_splash_image(res_path: String) -> Image:
+	var abs_path := ProjectSettings.globalize_path(res_path)
+	if not FileAccess.file_exists(abs_path):
+		return null
+	if ResourceLoader.exists(res_path):
+		var res: Resource = ResourceLoader.load(res_path)
+		if res is Texture2D:
+			var tex := res as Texture2D
+			var im := tex.get_image()
+			if im != null:
+				return im.duplicate()
+	var f := FileAccess.open(abs_path, FileAccess.READ)
+	if f == null:
+		return null
+	var bytes: PackedByteArray = f.get_buffer(f.get_length())
+	f.close()
+	if bytes.size() < 12:
+		return null
+	var img := Image.new()
+	if bytes[0] == 0x89 and bytes[1] == 0x50 and bytes[2] == 0x4E and bytes[3] == 0x47:
+		if img.load_png_from_buffer(bytes) == OK:
+			return img
+	elif bytes[0] == 0xFF and bytes[1] == 0xD8:
+		if img.load_jpg_from_buffer(bytes) == OK:
+			return img
+	push_warning("IKAROS: Could not decode splash bytes for %s (use PNG or JPEG)" % res_path)
+	return null
 
 
 func _raster_icon(size: int, dark: bool) -> Image:

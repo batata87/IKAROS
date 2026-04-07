@@ -13,14 +13,15 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 
 var _player: Node2D
 var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
-var _forward_hint: Vector2 = Vector2.RIGHT
+## Match web (Netlify): climb is “up” on screen — forward is -Y, not +X.
+var _forward_hint: Vector2 = Vector2.UP
 var _spawn_cooldown_sec: float = 0.0
 
 
 func setup(player: Node2D) -> void:
 	_player = player
 	_last_spawn_anchor_pos = Vector2.ZERO
-	_forward_hint = Vector2.RIGHT
+	_forward_hint = Vector2.UP
 	var first: NeonAnchor = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
 	# Second anchor ahead so there is always a target after first dash

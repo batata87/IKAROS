@@ -31,14 +31,21 @@ func _run() -> void:
 	_save_png(_scaled_copy(base_light, 58), OUT_DIR + "/settings_58x58.png")
 	_save_png(_scaled_copy(base_light, 58), OUT_DIR + "/ios_settings_58.png")
 
-	# iOS launch storyboard images (explicit 2x/3x).
+	# iOS launch storyboard images (explicit 2x/3x) — procedural fallback.
 	_save_png(_scaled_copy(base_light, 2048), OUT_DIR + "/custom_image_2x.png")
 	_save_png(_scaled_copy(base_light, 3072), OUT_DIR + "/custom_image_3x.png")
 	_save_png(_scaled_copy(base_light, 2048), OUT_DIR + "/launch_image_2x.png")
 	_save_png(_scaled_copy(base_light, 3072), OUT_DIR + "/launch_image_3x.png")
 
+	var storyboard_note := ""
+	if _export_storyboard_from_netlify_splash():
+		storyboard_note = "Storyboard PNGs from res://assets/splash_loading.png (Netlify art). "
+	else:
+		storyboard_note = "Storyboard PNGs from procedural icon (no assets/splash_loading.png). "
+
 	get_editor_interface().get_resource_filesystem().scan()
 	print(
+		storyboard_note,
 		"App assets written to ", OUT_DIR,
 		" — iOS export mapping: ",
 		"Icon 1024x1024=res://icons/icon_1024x1024.png, ",
@@ -63,6 +70,27 @@ func _scaled_copy(src: Image, size: int) -> Image:
 	var out := src.duplicate()
 	out.resize(size, size, Image.INTERPOLATE_LANCZOS)
 	return out
+
+
+## If `res://assets/splash_loading.png` exists (same art as Netlify), use it for iOS storyboard slots.
+func _export_storyboard_from_netlify_splash() -> bool:
+	var res_path := "res://assets/splash_loading.png"
+	if not FileAccess.file_exists(ProjectSettings.globalize_path(res_path)):
+		return false
+	var img := Image.new()
+	if img.load(ProjectSettings.globalize_path(res_path)) != OK:
+		return false
+	var i2 := img.duplicate()
+	i2.resize(828, 1792, Image.INTERPOLATE_LANCZOS)
+	_save_png(i2, OUT_DIR + "/custom_image_2x.png")
+	_save_png(i2, OUT_DIR + "/launch_image_2x.png")
+	_save_png(i2, OUT_DIR + "/storyboard_custom_2x.png")
+	var i3 := img.duplicate()
+	i3.resize(1242, 2688, Image.INTERPOLATE_LANCZOS)
+	_save_png(i3, OUT_DIR + "/custom_image_3x.png")
+	_save_png(i3, OUT_DIR + "/launch_image_3x.png")
+	_save_png(i3, OUT_DIR + "/storyboard_custom_3x.png")
+	return true
 
 
 func _raster_icon(size: int, dark: bool) -> Image:

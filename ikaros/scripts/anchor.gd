@@ -8,6 +8,7 @@ extends Node2D
 @export var rotation_speed: float = 1.2
 @export var shrink_enabled: bool = true
 @export var orbit_shrink_per_sec: float = 8.0
+@export var passive_shrink_factor: float = 0.35
 @export var min_orbit_radius: float = 54.0
 @export var ring_color: Color = Color(0.0, 1.0, 1.0, 0.85)
 @export var core_color: Color = Color(1.0, 0.0, 1.0, 0.35)
@@ -36,9 +37,10 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
-	if not shrink_enabled or not _active_orbit_anchor:
+	if not shrink_enabled:
 		return
-	var next_orbit := maxf(min_orbit_radius, orbit_radius - orbit_shrink_per_sec * delta)
+	var rate := orbit_shrink_per_sec if _active_orbit_anchor else orbit_shrink_per_sec * passive_shrink_factor
+	var next_orbit := maxf(min_orbit_radius, orbit_radius - rate * delta)
 	if is_equal_approx(next_orbit, orbit_radius):
 		return
 	orbit_radius = next_orbit

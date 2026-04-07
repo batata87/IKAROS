@@ -8,6 +8,8 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var lux_spawn_chance: float = 0.42
 @export var spawn_ahead_min: float = 380.0
 @export var spawn_ahead_max: float = 620.0
+@export var preload_forward_distance: float = 1500.0
+@export var min_anchors_ahead: int = 3
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
 
@@ -24,9 +26,9 @@ func setup(player: Node2D) -> void:
 	_forward_hint = Vector2.UP
 	var first: NeonAnchor = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
-	# Keep at least two targets ahead at run start so jumps never feel blind.
-	_queue_spawn_ahead()
-	_queue_spawn_ahead()
+	# Prewarm chain so upcoming circles exist before the player starts moving.
+	for _i in range(min_anchors_ahead):
+		_queue_spawn_ahead()
 
 
 func _process(delta: float) -> void:
@@ -82,9 +84,16 @@ func _try_spawn_ahead() -> void:
 		if n is Node2D:
 			nearest = minf(nearest, n.global_position.distance_to(_player.global_position))
 	var need_more := nearest > spawn_ahead_min * 0.85
-	# Also keep extending when player approaches the currently spawned frontier.
+	var ahead_count := 0
+	for n in anchors:
+		if n is Node2D:
+			var to_anchor := n.global_position - _player.global_position
+			if to_anchor.dot(_forward_hint) > 0.0:
+				ahead_count += 1
 	var dist_to_frontier := _player.global_position.distance_to(_last_spawn_anchor_pos)
-	if not need_more and dist_to_frontier < spawn_ahead_max * 1.05:
+	if not need_more and ahead_count < min_anchors_ahead:
+		need_more = true
+	if not need_more and dist_to_frontier < preload_forward_distance:
 		need_more = true
 	if need_more:
 		_queue_spawn_ahead()

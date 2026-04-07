@@ -8,13 +8,15 @@ extends Node2D
 @export var rotation_speed: float = 1.2
 @export var shrink_enabled: bool = true
 @export var orbit_shrink_per_sec: float = 8.0
-@export var passive_shrink_factor: float = 0.35
 @export var min_orbit_radius: float = 54.0
+@export var danger_ring_color: Color = Color(1.0, 0.22, 0.22, 0.95)
+@export var timer_ring_color: Color = Color(1.0, 0.9, 0.15, 0.95)
 @export var ring_color: Color = Color(0.0, 1.0, 1.0, 0.85)
 @export var core_color: Color = Color(1.0, 0.0, 1.0, 0.35)
 
 var _pulse_tween: Tween
 var _active_orbit_anchor: bool = false
+var _active_start_orbit_radius: float = 90.0
 
 
 func _ready() -> void:
@@ -32,15 +34,27 @@ func _on_equipped_theme(_player_fill: Color, _player_ring: Color, ar: Color, ac:
 
 
 func _draw() -> void:
-	draw_arc(Vector2.ZERO, visual_radius, 0.0, TAU, 64, ring_color, 3.0, true)
+	var remaining_t := clampf(
+		(orbit_radius - min_orbit_radius) / maxf(_active_start_orbit_radius - min_orbit_radius, 0.001),
+		0.0,
+		1.0
+	)
+	var danger_t := 1.0 - remaining_t
+	var ring_now: Color = ring_color
+	if _active_orbit_anchor:
+		ring_now = ring_color.lerp(danger_ring_color, danger_t)
+	draw_arc(Vector2.ZERO, visual_radius, 0.0, TAU, 64, ring_now, 3.0, true)
+	if _active_orbit_anchor:
+		var timer_radius := visual_radius * 0.74
+		var timer_span := TAU * remaining_t
+		draw_arc(Vector2.ZERO, timer_radius, -PI * 0.5, -PI * 0.5 + timer_span, 48, timer_ring_color, 2.5, true)
 	draw_circle(Vector2.ZERO, visual_radius * 0.12, core_color)
 
 
 func _process(delta: float) -> void:
-	if not shrink_enabled:
+	if not shrink_enabled or not _active_orbit_anchor:
 		return
-	var rate := orbit_shrink_per_sec if _active_orbit_anchor else orbit_shrink_per_sec * passive_shrink_factor
-	var next_orbit := maxf(min_orbit_radius, orbit_radius - rate * delta)
+	var next_orbit := maxf(min_orbit_radius, orbit_radius - orbit_shrink_per_sec * delta)
 	if is_equal_approx(next_orbit, orbit_radius):
 		return
 	orbit_radius = next_orbit
@@ -72,3 +86,6 @@ func contains_point_global(p: Vector2) -> bool:
 
 func set_active_orbit_anchor(active: bool) -> void:
 	_active_orbit_anchor = active
+	if active:
+		_active_start_orbit_radius = maxf(orbit_radius, min_orbit_radius + 0.001)
+	queue_redraw()

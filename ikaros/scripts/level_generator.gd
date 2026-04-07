@@ -74,11 +74,14 @@ func _try_spawn_ahead() -> void:
 	var anchors := get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
 		return
-	var furthest := 0.0
+	# Spawn when the *nearest* anchor is farther than this — player has outrun the chain
+	# (using max distance was inverted: once you move ahead, "furthest" stays huge and nothing spawned).
+	var nearest := INF
 	for n in anchors:
 		if n is Node2D:
-			furthest = maxf(furthest, n.global_position.distance_to(_player.global_position))
-	if furthest < spawn_ahead_min * 0.85:
+			nearest = minf(nearest, n.global_position.distance_to(_player.global_position))
+	var need_more := nearest > spawn_ahead_min * 0.85
+	if need_more:
 		_queue_spawn_ahead()
 		_spawn_cooldown_sec = 0.5
 

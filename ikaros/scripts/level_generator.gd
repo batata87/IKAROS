@@ -87,7 +87,7 @@ func _try_spawn_ahead() -> void:
 	var ahead_count := 0
 	for n in anchors:
 		if n is Node2D:
-			var to_anchor := n.global_position - _player.global_position
+			var to_anchor: Vector2 = n.global_position - _player.global_position
 			if to_anchor.dot(_forward_hint) > 0.0:
 				ahead_count += 1
 	var dist_to_frontier := _player.global_position.distance_to(_last_spawn_anchor_pos)

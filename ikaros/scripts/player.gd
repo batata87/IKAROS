@@ -42,6 +42,7 @@ var _last_tap_msec: int = -1000
 var _pointer_was_down: bool = false
 var _ignore_capture_anchor: NeonAnchor = null
 var _input_lock_until_msec: int = 0
+var _dash_time_sec: float = 0.0
 
 
 func _ready() -> void:
@@ -143,6 +144,7 @@ func initialize_after_level() -> void:
 	_input_lock_until_msec = now + 220
 	_last_tap_msec = now
 	_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
+	_dash_time_sec = 0.0
 	_attach_to_initial_anchor()
 
 
@@ -429,9 +431,13 @@ func _spawn_coyote_fx() -> void:
 
 
 func _physics_dash(delta: float) -> void:
+	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
 	var col := move_and_collide(velocity * delta)
 	if col:
+		GameManager.trigger_fail()
+		return
+	if _dash_time_sec > 3.2:
 		GameManager.trigger_fail()
 		return
 	if global_position.length() > max_offworld:
@@ -448,6 +454,9 @@ func _try_capture_anchor() -> void:
 		if a == null or not is_instance_valid(a):
 			continue
 		if _ignore_capture_anchor != null and a == _ignore_capture_anchor:
+			continue
+		# Enforce upward-only valid captures.
+		if a.global_position.y >= global_position.y - 2.0:
 			continue
 		if a.contains_point_global(global_position):
 			var d2 := global_position.distance_squared_to(a.global_position)
@@ -482,6 +491,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	global_position = a.global_position + Vector2(a.orbit_radius, 0.0).rotated(_orbit_angle)
 	GameManager.on_anchor_captured(1)
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
+	_dash_time_sec = 0.0
 	_reset_centrifugal()
 	_coyote_armed = false
 	_coyote_used = false

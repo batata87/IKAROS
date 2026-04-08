@@ -9,7 +9,7 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var spawn_ahead_min: float = 380.0
 @export var spawn_ahead_max: float = 620.0
 @export var preload_forward_distance: float = 1500.0
-@export var min_anchors_ahead: int = 4
+@export var min_anchors_ahead: int = 2
 @export var max_lateral_step: float = 260.0
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
@@ -55,8 +55,8 @@ func _queue_spawn_ahead() -> void:
 		return
 	var from: Vector2 = _last_spawn_anchor_pos
 	var jump_distance = _estimate_jump_distance()
-	var max_step = maxf(220.0, jump_distance * 0.9) # anti-trap cap: always within 90% jump distance
-	var min_step = maxf(150.0, max_step * 0.62)
+	var max_step = minf(520.0, maxf(210.0, jump_distance * 0.82))
+	var min_step = maxf(140.0, max_step * 0.55)
 	var d: float = randf_range(min_step, max_step)
 	var forward = _forward_hint.normalized()
 	# Keep flow mostly upward with only mild sideways variation.
@@ -119,8 +119,7 @@ func _cull_distant() -> void:
 		if c != null:
 			# Upward game: anything far below player is safe to cull.
 			var far_below: bool = c.global_position.y > _player.global_position.y + cull_behind_distance
-			var far_away: bool = c.global_position.distance_to(_player.global_position) > cull_behind_distance * 1.4
-			if far_below or far_away:
+			if far_below:
 				c.queue_free()
 
 

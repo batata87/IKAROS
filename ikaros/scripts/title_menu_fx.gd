@@ -98,7 +98,7 @@ func _apply_responsive_layout() -> void:
 	if size.x <= 1.0 or _title == null or _box == null or _tap == null or _lux_hint == null:
 		return
 	var available_w := maxf(220.0, size.x - 88.0)
-	var title_size := clampi(int(size.x * 0.19), 70, 112)
+	var title_size := clampi(int(size.x * 0.165), 56, 102)
 	var tap_size := clampi(int(float(title_size) * 0.44), 28, 44)
 	var hint_size := clampi(int(float(title_size) * 0.28), 16, 26)
 	_title.add_theme_font_size_override("font_size", title_size)
@@ -108,5 +108,7 @@ func _apply_responsive_layout() -> void:
 	_tap.custom_minimum_size.x = available_w
 	_lux_hint.custom_minimum_size.x = available_w
 	_box.add_theme_constant_override("separation", clampi(int(size.y * 0.06), 42, 72))
+	_box.custom_minimum_size.x = available_w
+	_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if _vault:
 		_vault.custom_minimum_size = Vector2(minf(available_w, 340.0), 62.0)

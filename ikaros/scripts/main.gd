@@ -38,11 +38,17 @@ func _input(event: InputEvent) -> void:
 		return
 	if store_screen != null and store_screen.visible:
 		return
-	var p := _event_position(event)
-	if p != null:
-		if btn_vault and btn_vault.get_global_rect().has_point(p):
+	if event is InputEventScreenTouch:
+		var p_touch: Vector2 = (event as InputEventScreenTouch).position
+		if btn_vault and btn_vault.get_global_rect().has_point(p_touch):
 			return
-		if btn_feedback and btn_feedback.get_global_rect().has_point(p):
+		if btn_feedback and btn_feedback.get_global_rect().has_point(p_touch):
+			return
+	elif event is InputEventMouseButton:
+		var p_mouse: Vector2 = (event as InputEventMouseButton).position
+		if btn_vault and btn_vault.get_global_rect().has_point(p_mouse):
+			return
+		if btn_feedback and btn_feedback.get_global_rect().has_point(p_mouse):
 			return
 	if _is_tap_event(event):
 		_start_run()
@@ -56,14 +62,6 @@ func _is_tap_event(event: InputEvent) -> bool:
 		var mb := event as InputEventMouseButton
 		return mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
 	return false
-
-
-func _event_position(event: InputEvent) -> Variant:
-	if event is InputEventScreenTouch:
-		return (event as InputEventScreenTouch).position
-	if event is InputEventMouseButton:
-		return (event as InputEventMouseButton).position
-	return null
 
 
 func _start_run() -> void:

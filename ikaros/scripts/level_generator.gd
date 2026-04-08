@@ -118,8 +118,8 @@ func _cull_distant() -> void:
 		var c := child as Node2D
 		if c != null:
 			# Upward game: anything far below player is safe to cull.
-			var far_below := c.global_position.y > _player.global_position.y + cull_behind_distance
-			var far_away := c.global_position.distance_to(_player.global_position) > cull_behind_distance * 1.4
+			var far_below: bool = c.global_position.y > _player.global_position.y + cull_behind_distance
+			var far_away: bool = c.global_position.distance_to(_player.global_position) > cull_behind_distance * 1.4
 			if far_below or far_away:
 				c.queue_free()
 

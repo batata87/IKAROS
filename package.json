@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "build": "vite build",
+    "stamp:build": "node scripts/release-stamp.mjs",
+    "build": "npm run stamp:build && vite build",
     "preview": "node server.js --prod"
   },
   "dependencies": {

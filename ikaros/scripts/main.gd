@@ -6,6 +6,7 @@ extends Node2D
 @onready var lbl_hi: Label = $CanvasLayer/HUD/HighScore
 @onready var lbl_mul: Label = $CanvasLayer/HUD/Multiplier
 @onready var lbl_lux: Label = $CanvasLayer/HUD/LuxBalance
+@onready var lbl_build: Label = $CanvasLayer/HUD/BuildInfo
 @onready var main_menu: Control = $CanvasLayer/MainMenu
 @onready var store_screen = $CanvasLayer/StoreScreen
 @onready var btn_vault: Button = $CanvasLayer/MainMenu/Center/VBox/BtnVault
@@ -29,6 +30,7 @@ func _ready() -> void:
 
 	_refresh_hud()
 	_on_lux_changed(CurrencyManager.lux)
+	_load_build_label()
 
 
 func _input(event: InputEvent) -> void:
@@ -108,3 +110,22 @@ func _on_multiplier_changed(_v: float) -> void:
 func _refresh_hud() -> void:
 	lbl_hi.text = "HI: %d" % GameManager.high_score
 	lbl_mul.text = "x%.1f" % GameManager.multiplier
+
+
+func _load_build_label() -> void:
+	if lbl_build == null:
+		return
+	var p := "res://build/build_info.txt"
+	if not FileAccess.file_exists(p):
+		lbl_build.text = "build: dev"
+		return
+	var f := FileAccess.open(p, FileAccess.READ)
+	if f == null:
+		lbl_build.text = "build: dev"
+		return
+	var txt := f.get_as_text().strip_edges()
+	f.close()
+	if txt == "":
+		lbl_build.text = "build: dev"
+	else:
+		lbl_build.text = txt

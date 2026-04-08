@@ -8,6 +8,7 @@ var _phase: float = 0.0
 var _title: Label
 var _tap: Label
 var _lux_hint: Label
+var _tap_tween: Tween
 
 
 func _ready() -> void:
@@ -20,34 +21,63 @@ func _ready() -> void:
 		_tap = Label.new()
 		_tap.name = "TapHint"
 		_tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_tap.add_theme_color_override("font_color", Color(0.0, 1.0, 0.97, 0.78))
-		_tap.add_theme_font_size_override("font_size", 36)
+		_tap.add_theme_color_override("font_color", Color(0.0, 0.98, 0.9, 0.93))
+		_tap.add_theme_font_size_override("font_size", 44)
 		_tap.text = "Tap to ascend"
 		box.add_child(_tap)
 		box.move_child(_tap, box.get_child_count() - 2)
 		_lux_hint = Label.new()
 		_lux_hint.name = "LuxHint"
 		_lux_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_lux_hint.add_theme_color_override("font_color", Color(1.0, 0.86, 0.55, 0.8))
-		_lux_hint.add_theme_font_size_override("font_size", 22)
+		_lux_hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78, 0.9))
+		_lux_hint.add_theme_font_size_override("font_size", 26)
 		_lux_hint.text = "Collect golden LUX between the stars"
 		box.add_child(_lux_hint)
 		box.move_child(_lux_hint, box.get_child_count() - 2)
+		_start_tap_pulse()
 	set_process(true)
 
 
 func _process(delta: float) -> void:
 	_phase += delta
-	if _tap:
-		var a := 0.58 + 0.36 * (0.5 + 0.5 * sin(_phase * 1.5))
-		_tap.modulate.a = a
 	queue_redraw()
 
 
 func _draw() -> void:
+	_draw_menu_vignette()
 	if _title == null or not _title.visible:
 		return
 	var center := _title.position + _title.size * 0.5
 	var dot_center := center + Vector2(cos(_phase * orbit_speed), sin(_phase * orbit_speed) * 0.58) * orbit_radius
 	draw_circle(dot_center, 6.0, Color(1.0, 0.22, 0.9, 0.98))
 	draw_circle(dot_center, 11.0, Color(1.0, 0.0, 0.8, 0.25))
+
+
+func _draw_menu_vignette() -> void:
+	var size := get_viewport_rect().size
+	if size.x <= 1.0 or size.y <= 1.0:
+		return
+	var center := size * 0.5
+	var max_r := size.length() * 0.62
+	for i in range(6):
+		var t := float(i) / 5.0
+		var r := lerpf(max_r * 0.2, max_r, t)
+		var a := lerpf(0.1, 0.0, t)
+		draw_circle(center, r, Color(0.18, 0.5, 0.45, a))
+	# baseline dark veil keeps OLED-like deep blacks.
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.16), true)
+
+
+func _start_tap_pulse() -> void:
+	if _tap == null:
+		return
+	if _tap_tween and _tap_tween.is_valid():
+		_tap_tween.kill()
+	_tap.scale = Vector2.ONE
+	_tap.modulate.a = 0.84
+	_tap_tween = create_tween()
+	_tap_tween.set_loops()
+	_tap_tween.tween_property(_tap, "scale", Vector2(1.05, 1.05), 0.95)
+	_tap_tween.parallel().tween_property(_tap, "modulate:a", 1.0, 0.95)
+	_tap_tween.tween_property(_tap, "scale", Vector2.ONE, 0.95)
+	_tap_tween.parallel().tween_property(_tap, "modulate:a", 0.78, 0.95)

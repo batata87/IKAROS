@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/level_generator.gd" id="2_levelgen"]
@@ -21,6 +21,42 @@ glow_hdr_threshold = 0.85
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_chromatic"]
 shader = ExtResource("6_chromatic_shader")
 shader_parameter/aberration_strength = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vault_normal"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.596078, 0.960784, 0.882353, 0.95)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vault_hover"]
+bg_color = Color(0.596078, 0.960784, 0.882353, 0.08)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.596078, 0.960784, 0.882353, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vault_pressed"]
+bg_color = Color(0.596078, 0.960784, 0.882353, 0.15)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.596078, 0.960784, 0.882353, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -113,25 +149,28 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.03, 0.03, 0.08, 0.97)
+color = Color(0.00784314, 0.00784314, 0.00784314, 1)
 
 [node name="Center" type="CenterContainer" parent="CanvasLayer/MainMenu"]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 8
+anchor_top = 0.08
 anchor_right = 1.0
-anchor_bottom = 1.0
+anchor_bottom = 0.92
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/MainMenu/Center"]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 64
 alignment = 1
 
 [node name="Title" type="Label" parent="CanvasLayer/MainMenu/Center/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 1, 1, 1)
-theme_override_font_sizes/font_size = 88
+theme_override_colors/font_color = Color(0.596078, 0.960784, 0.882353, 1)
+theme_override_colors/font_outline_color = Color(0.14, 0.34, 0.31, 0.95)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 112
 text = "IKAROS"
 horizontal_alignment = 1
 
@@ -144,8 +183,14 @@ text = "Play"
 [node name="BtnVault" type="Button" parent="CanvasLayer/MainMenu/Center/VBox"]
 custom_minimum_size = Vector2(240, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "🛒 The Vault"
+theme_override_colors/font_color = Color(0.596078, 0.960784, 0.882353, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_vault_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_vault_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_vault_pressed")
+theme_override_styles/focus = SubResource("StyleBoxFlat_vault_hover")
+text = "⬢ The Vault"
+flat = true
 
 [node name="BtnFeedback" type="Button" parent="CanvasLayer/MainMenu"]
 custom_minimum_size = Vector2(120, 40)

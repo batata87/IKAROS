@@ -8,6 +8,8 @@ extends Node2D
 @onready var lbl_lux: Label = $CanvasLayer/HUD/LuxBalance
 @onready var main_menu: Control = $CanvasLayer/MainMenu
 @onready var store_screen = $CanvasLayer/StoreScreen
+@onready var btn_vault: Button = $CanvasLayer/MainMenu/Center/VBox/BtnVault
+@onready var btn_feedback: Button = $CanvasLayer/MainMenu/BtnFeedback
 var _run_started: bool = false
 
 
@@ -29,13 +31,19 @@ func _ready() -> void:
 	_on_lux_changed(CurrencyManager.lux)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if not main_menu.visible:
 		return
 	if _run_started:
 		return
 	if store_screen != null and store_screen.visible:
 		return
+	var p := _event_position(event)
+	if p != null:
+		if btn_vault and btn_vault.get_global_rect().has_point(p):
+			return
+		if btn_feedback and btn_feedback.get_global_rect().has_point(p):
+			return
 	if _is_tap_event(event):
 		_start_run()
 		get_viewport().set_input_as_handled()
@@ -48,6 +56,14 @@ func _is_tap_event(event: InputEvent) -> bool:
 		var mb := event as InputEventMouseButton
 		return mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
 	return false
+
+
+func _event_position(event: InputEvent) -> Variant:
+	if event is InputEventScreenTouch:
+		return (event as InputEventScreenTouch).position
+	if event is InputEventMouseButton:
+		return (event as InputEventMouseButton).position
+	return null
 
 
 func _start_run() -> void:

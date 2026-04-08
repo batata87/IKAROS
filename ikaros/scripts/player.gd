@@ -41,6 +41,7 @@ var _hum_phase: float = 0.0
 var _last_tap_msec: int = -1000
 var _pointer_was_down: bool = false
 var _ignore_capture_anchor: NeonAnchor = null
+var _input_lock_until_msec: int = 0
 
 
 func _ready() -> void:
@@ -137,6 +138,11 @@ func initialize_after_level() -> void:
 	_reset_centrifugal()
 	_coyote_armed = false
 	_coyote_used = false
+	# Prevent the menu tap from immediately triggering a gameplay release on mobile.
+	var now := Time.get_ticks_msec()
+	_input_lock_until_msec = now + 220
+	_last_tap_msec = now
+	_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 	_attach_to_initial_anchor()
 
 
@@ -174,6 +180,9 @@ func _physics_process(delta: float) -> void:
 func _poll_mobile_pointer_tap() -> void:
 	if not OS.has_feature("mobile"):
 		return
+	if Time.get_ticks_msec() < _input_lock_until_msec:
+		_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
+		return
 	var pointer_down := (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 	if pointer_down and not _pointer_was_down:
 		var now := Time.get_ticks_msec()
@@ -195,6 +204,8 @@ func _update_camera_zoom(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if not _is_tap_event(event):
+		return
+	if Time.get_ticks_msec() < _input_lock_until_msec:
 		return
 	var now := Time.get_ticks_msec()
 	if now - _last_tap_msec < 80:

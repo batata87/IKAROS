@@ -20,16 +20,16 @@ func _ready() -> void:
 		_tap = Label.new()
 		_tap.name = "TapHint"
 		_tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_tap.theme_override_colors.font_color = Color(0.0, 1.0, 0.97, 0.78)
-		_tap.theme_override_font_sizes.font_size = 36
+		_tap.add_theme_color_override("font_color", Color(0.0, 1.0, 0.97, 0.78))
+		_tap.add_theme_font_size_override("font_size", 36)
 		_tap.text = "Tap to ascend"
 		box.add_child(_tap)
 		box.move_child(_tap, box.get_child_count() - 2)
 		_lux_hint = Label.new()
 		_lux_hint.name = "LuxHint"
 		_lux_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_lux_hint.theme_override_colors.font_color = Color(1.0, 0.86, 0.55, 0.8)
-		_lux_hint.theme_override_font_sizes.font_size = 22
+		_lux_hint.add_theme_color_override("font_color", Color(1.0, 0.86, 0.55, 0.8))
+		_lux_hint.add_theme_font_size_override("font_size", 22)
 		_lux_hint.text = "Collect golden LUX between the stars"
 		box.add_child(_lux_hint)
 		box.move_child(_lux_hint, box.get_child_count() - 2)

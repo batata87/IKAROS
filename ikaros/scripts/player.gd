@@ -12,6 +12,7 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var dash_speed: float = 620.0
 @export var max_offworld: float = 5200.0
 @export var ghost_length: float = 220.0
+@export var jump_arc_sec: float = 0.56
 @export var zoom_tight: float = 0.92
 @export var zoom_wide: float = 0.68
 @export var zoom_speed_ref: float = 920.0
@@ -92,6 +93,15 @@ func get_overdrive_speed_hint() -> float:
 	if GameManager.state == GameManager.GameState.ORBITING and _anchor != null and is_instance_valid(_anchor):
 		return absf(_anchor.rotation_speed * _anchor.orbit_radius)
 	return 0.0
+
+
+func get_jump_distance_hint() -> float:
+	var speed := dash_speed
+	if GameManager.state == GameManager.GameState.ORBITING:
+		speed = dash_speed * _centrifugal_launch_mult()
+	elif GameManager.state == GameManager.GameState.DASHING:
+		speed = maxf(speed, velocity.length())
+	return speed * jump_arc_sec
 
 
 func _centrifugal_charge_t() -> float:
@@ -227,6 +237,7 @@ func _attach_to_initial_anchor() -> void:
 	_anchor = lg.get_child(0) as NeonAnchor
 	if _anchor:
 		_anchor.set_active_orbit_anchor(true)
+		_bind_anchor_events(_anchor)
 	_orbit_angle = PI * 0.5
 	global_position = _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
 	_reset_centrifugal()
@@ -247,6 +258,46 @@ func _physics_orbit(delta: float) -> void:
 	_vib_phase += delta * (72.0 + 140.0 * ct)
 	_orbit_angle += _anchor.rotation_speed * delta
 	global_position = _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
+	_update_active_anchor_reachability()
+
+
+func _update_active_anchor_reachability() -> void:
+	if _anchor == null or not is_instance_valid(_anchor):
+		return
+	var jump_distance := get_jump_distance_hint()
+	var has_target := false
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as NeonAnchor
+		if a == null or not is_instance_valid(a) or a == _anchor:
+			continue
+		# Prefer "upward" targets for fairness in the climb direction.
+		if a.global_position.y >= _anchor.global_position.y - 2.0:
+			continue
+		var d := global_position.distance_to(a.global_position)
+		if d <= jump_distance + a.capture_radius:
+			has_target = true
+			break
+	_anchor.set_target_reachable(has_target)
+
+
+func _bind_anchor_events(a: NeonAnchor) -> void:
+	if a == null:
+		return
+	if not a.countdown_finished.is_connected(_on_anchor_countdown_finished):
+		a.countdown_finished.connect(_on_anchor_countdown_finished)
+
+
+func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
+	if _anchor == null or anchor != _anchor:
+		return
+	_anchor = null
+	_coyote_armed = false
+	_coyote_used = false
+	_ignore_capture_anchor = null
+	velocity = Vector2(0.0, dash_speed * 1.12)
+	GameManager.set_game_state(GameManager.GameState.DASHING)
+	if trail_particles:
+		trail_particles.emitting = true
 
 
 func _play_charge_blip() -> void:
@@ -415,6 +466,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	velocity = Vector2.ZERO
 	_anchor = a
 	_anchor.set_active_orbit_anchor(true)
+	_bind_anchor_events(_anchor)
 	_orbit_angle = (global_position - a.global_position).angle()
 	global_position = a.global_position + Vector2(a.orbit_radius, 0.0).rotated(_orbit_angle)
 	GameManager.on_anchor_captured(1)

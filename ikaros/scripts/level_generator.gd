@@ -9,7 +9,7 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var spawn_ahead_min: float = 380.0
 @export var spawn_ahead_max: float = 620.0
 @export var preload_forward_distance: float = 1500.0
-@export var min_anchors_ahead: int = 3
+@export var min_anchors_ahead: int = 4
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
 
@@ -52,8 +52,10 @@ func _queue_spawn_ahead() -> void:
 	if _player == null:
 		return
 	var from: Vector2 = _last_spawn_anchor_pos
-	var score: int = GameManager.score
-	var d: float = randf_range(spawn_ahead_min, spawn_ahead_max) + score * 0.35
+	var jump_distance := _estimate_jump_distance()
+	var max_step := maxf(220.0, jump_distance * 0.9) # anti-trap cap: always within 90% jump distance
+	var min_step := maxf(150.0, max_step * 0.62)
+	var d: float = randf_range(min_step, max_step)
 	var theta: float = deg_to_rad(randf_range(-38.0, 38.0))
 	var dir: Vector2 = _forward_hint.rotated(theta).normalized()
 	var target: Vector2 = _last_spawn_anchor_pos + dir * d
@@ -103,7 +105,9 @@ func _try_spawn_ahead() -> void:
 func _cull_distant() -> void:
 	for child in get_children():
 		if child is NeonAnchor or child is LuxPickup:
-			if child.global_position.distance_to(_player.global_position) > cull_behind_distance:
+			var to_child: Vector2 = child.global_position - _player.global_position
+			var is_behind := to_child.dot(_forward_hint) < 0.0
+			if is_behind and to_child.length() > cull_behind_distance:
 				child.queue_free()
 
 
@@ -111,3 +115,9 @@ func update_forward_hint(from: Vector2, to: Vector2) -> void:
 	var v := to - from
 	if v.length_squared() > 0.0001:
 		_forward_hint = v.normalized()
+
+
+func _estimate_jump_distance() -> float:
+	if _player != null and _player.has_method("get_jump_distance_hint"):
+		return maxf(280.0, float(_player.call("get_jump_distance_hint")))
+	return spawn_ahead_max

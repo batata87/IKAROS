@@ -5,7 +5,7 @@ extends Node2D
 @export var spread: Vector2 = Vector2(2200.0, 3400.0)
 @export var near_color: Color = Color(0.62, 0.88, 1.0, 0.95)
 @export var far_color: Color = Color(0.95, 0.75, 1.0, 0.75)
-@export var deep_space_color: Color = Color(0.03, 0.03, 0.08, 1.0)
+@export var deep_space_color: Color = Color(0.0078, 0.0078, 0.0078, 1.0) # #020202
 @export var mid_space_color: Color = Color(0.02, 0.01, 0.12, 1.0)
 @export var high_space_color: Color = Color(0.00, 0.00, 0.03, 1.0)
 

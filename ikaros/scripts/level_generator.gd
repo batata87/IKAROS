@@ -10,6 +10,8 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var spawn_ahead_max: float = 620.0
 @export var preload_forward_distance: float = 1500.0
 @export var min_anchors_ahead: int = 2
+@export var target_anchors_alive: int = 6
+@export var spawn_interval_sec: float = 0.22
 @export var max_lateral_step: float = 260.0
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
@@ -19,6 +21,7 @@ var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
 ## Match web (Netlify): climb is “up” on screen — forward is -Y, not +X.
 var _forward_hint: Vector2 = Vector2.UP
 var _spawn_cooldown_sec: float = 0.0
+var _spawn_accum_sec: float = 0.0
 
 
 func setup(player) -> void:
@@ -30,13 +33,16 @@ func setup(player) -> void:
 	# Prewarm chain so upcoming circles exist before the player starts moving.
 	for _i in range(min_anchors_ahead):
 		_queue_spawn_ahead()
+	_spawn_accum_sec = 0.0
 
 
 func _process(delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	_spawn_cooldown_sec = maxf(_spawn_cooldown_sec - delta, 0.0)
-	if _spawn_cooldown_sec <= 0.0:
+	_spawn_accum_sec += delta
+	while _spawn_accum_sec >= spawn_interval_sec:
+		_spawn_accum_sec -= spawn_interval_sec
 		_try_spawn_ahead()
 	_cull_distant()
 
@@ -87,6 +93,10 @@ func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 func _try_spawn_ahead() -> void:
 	var anchors = get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
+		return
+	if anchors.size() < target_anchors_alive:
+		_queue_spawn_ahead()
+		_spawn_cooldown_sec = 0.0
 		return
 	# Spawn when the *nearest* anchor is farther than this — player has outrun the chain
 	# (using max distance was inverted: once you move ahead, "furthest" stays huge and nothing spawned).

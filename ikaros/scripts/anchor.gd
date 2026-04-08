@@ -12,8 +12,8 @@ signal countdown_finished(anchor: NeonAnchor)
 @export var min_orbit_radius: float = 54.0
 @export var danger_ring_color: Color = Color(1.0, 0.22, 0.22, 0.95)
 @export var timer_ring_color: Color = Color(1.0, 0.9, 0.15, 0.95)
-@export var ring_color: Color = Color(0.0, 1.0, 1.0, 0.85)
-@export var core_color: Color = Color(1.0, 0.0, 1.0, 0.35)
+@export var ring_color: Color = Color(1.0, 0.0, 0.5, 0.9) # #FF007F-like
+@export var core_color: Color = Color(1.0, 0.0, 0.5, 0.4)
 
 var _pulse_tween: Tween
 var _danger_tween: Tween

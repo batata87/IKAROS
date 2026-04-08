@@ -9,7 +9,7 @@ const MAX_CENTRIFUGAL_REVS: int = 8
 const CENTRIFUGAL_MULT_PER_REV: float = 0.25
 const MAX_LAUNCH_MULT: float = 3.0
 
-@export var dash_speed: float = 620.0
+@export var dash_speed: float = 715.0
 @export var max_offworld: float = 5200.0
 @export var ghost_length: float = 220.0
 @export var jump_arc_sec: float = 0.56
@@ -26,8 +26,8 @@ var _ghost_line: Line2D
 @onready var _charge_blip: AudioStreamPlayer = $ChargeBlip
 @onready var _charge_hum: AudioStreamPlayer = $ChargeHum
 
-var _fill_color: Color = Color(1.0, 0.35, 1.0, 0.95)
-var _ring_color: Color = Color(0.4, 1.0, 1.0, 0.9)
+var _fill_color: Color = Color(0.0, 0.95, 0.996, 0.98)
+var _ring_color: Color = Color(0.0, 0.95, 0.996, 0.9)
 
 ## Radians traveled on current anchor (for partial revolution visual + audio steps).
 var _orbit_path_accum: float = 0.0
@@ -43,6 +43,7 @@ var _pointer_was_down: bool = false
 var _ignore_capture_anchor: NeonAnchor = null
 var _input_lock_until_msec: int = 0
 var _dash_time_sec: float = 0.0
+var _stuck_time_sec: float = 0.0
 
 
 func _ready() -> void:
@@ -145,6 +146,7 @@ func initialize_after_level() -> void:
 	_last_tap_msec = now
 	_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 	_dash_time_sec = 0.0
+	_stuck_time_sec = 0.0
 	_attach_to_initial_anchor()
 
 
@@ -220,7 +222,7 @@ func _input(event: InputEvent) -> void:
 func _is_tap_event(event: InputEvent) -> bool:
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
-		return st.pressed
+		return not st.pressed
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
@@ -272,6 +274,8 @@ func _physics_orbit(delta: float) -> void:
 	_orbit_angle += _anchor.rotation_speed * delta
 	global_position = _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
 	_update_active_anchor_reachability()
+	if trail_particles:
+		trail_particles.emitting = false
 
 
 func _update_active_anchor_reachability() -> void:
@@ -307,9 +311,12 @@ func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
 	_coyote_armed = false
 	_coyote_used = false
 	_ignore_capture_anchor = null
-	velocity = Vector2(0.0, dash_speed * 1.12)
+	velocity = Vector2(0.0, dash_speed * 1.34)
+	_dash_time_sec = 0.0
+	_stuck_time_sec = 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
 	if trail_particles:
+		trail_particles.restart()
 		trail_particles.emitting = true
 
 
@@ -382,10 +389,13 @@ func _release_dash() -> void:
 	velocity = tangent * dash_speed * mult
 	_reset_centrifugal()
 	_anchor = null
+	_dash_time_sec = 0.0
+	_stuck_time_sec = 0.0
 	_coyote_used = false
 	_coyote_armed = velocity.y > 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
 	if trail_particles:
+		trail_particles.restart()
 		trail_particles.emitting = true
 
 
@@ -440,6 +450,13 @@ func _physics_dash(delta: float) -> void:
 	if _dash_time_sec > 3.2:
 		GameManager.trigger_fail()
 		return
+	if velocity.length() < 6.0:
+		_stuck_time_sec += delta
+		if _stuck_time_sec > 0.5:
+			GameManager.trigger_fail()
+			return
+	else:
+		_stuck_time_sec = 0.0
 	if global_position.length() > max_offworld:
 		GameManager.trigger_fail()
 		return
@@ -492,6 +509,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	GameManager.on_anchor_captured(1)
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 	_dash_time_sec = 0.0
+	_stuck_time_sec = 0.0
 	_reset_centrifugal()
 	_coyote_armed = false
 	_coyote_used = false

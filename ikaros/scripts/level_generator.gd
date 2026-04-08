@@ -14,7 +14,7 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
 
-var _player: Node2D
+var _player: Node2D = null
 var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
 ## Match web (Netlify): climb is “up” on screen — forward is -Y, not +X.
 var _forward_hint: Vector2 = Vector2.UP
@@ -25,7 +25,7 @@ func setup(player: Node2D) -> void:
 	_player = player
 	_last_spawn_anchor_pos = Vector2.ZERO
 	_forward_hint = Vector2.UP
-	var first: NeonAnchor = spawn_anchor_at(Vector2.ZERO)
+	var first: Node2D = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
 	# Prewarm chain so upcoming circles exist before the player starts moving.
 	for _i in range(min_anchors_ahead):
@@ -41,10 +41,11 @@ func _process(delta: float) -> void:
 	_cull_distant()
 
 
-func spawn_anchor_at(global_pos: Vector2) -> NeonAnchor:
-	var a: NeonAnchor = ANCHOR_SCENE.instantiate()
+func spawn_anchor_at(global_pos: Vector2) -> Node2D:
+	var a: Node2D = ANCHOR_SCENE.instantiate()
 	a.global_position = global_pos
-	a.apply_difficulty(GameManager.score)
+	if a.has_method("apply_difficulty"):
+		a.call("apply_difficulty", GameManager.score)
 	add_child(a)
 	return a
 
@@ -53,11 +54,11 @@ func _queue_spawn_ahead() -> void:
 	if _player == null:
 		return
 	var from: Vector2 = _last_spawn_anchor_pos
-	var jump_distance := _estimate_jump_distance()
-	var max_step := maxf(220.0, jump_distance * 0.9) # anti-trap cap: always within 90% jump distance
-	var min_step := maxf(150.0, max_step * 0.62)
+	var jump_distance: float = _estimate_jump_distance()
+	var max_step: float = maxf(220.0, jump_distance * 0.9) # anti-trap cap: always within 90% jump distance
+	var min_step: float = maxf(150.0, max_step * 0.62)
 	var d: float = randf_range(min_step, max_step)
-	var forward := _forward_hint.normalized()
+	var forward: Vector2 = _forward_hint.normalized()
 	# Keep flow mostly upward with only mild sideways variation.
 	var theta: float = deg_to_rad(randf_range(-22.0, 22.0))
 	var dir: Vector2 = forward.rotated(theta).normalized()
@@ -65,7 +66,7 @@ func _queue_spawn_ahead() -> void:
 		dir = (dir + Vector2.UP * 1.7).normalized()
 	var target: Vector2 = _last_spawn_anchor_pos + dir * d
 	# Cap single-step lateral shift so path doesn't zig-zag unpredictably.
-	var dx := clampf(target.x - _last_spawn_anchor_pos.x, -max_lateral_step, max_lateral_step)
+	var dx: float = clampf(target.x - _last_spawn_anchor_pos.x, -max_lateral_step, max_lateral_step)
 	target.x = _last_spawn_anchor_pos.x + dx
 	spawn_anchor_at(target)
 	_maybe_spawn_lux_between(from, target)
@@ -78,29 +79,29 @@ func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 	var t: float = randf_range(0.22, 0.78)
 	var pos: Vector2 = from.lerp(to, t)
 	pos += Vector2(randf_range(-72.0, 72.0), randf_range(-56.0, 56.0))
-	var lux: LuxPickup = LUX_SCENE.instantiate()
+	var lux: Node2D = LUX_SCENE.instantiate()
 	lux.global_position = pos
 	add_child(lux)
 
 
 func _try_spawn_ahead() -> void:
-	var anchors := get_tree().get_nodes_in_group("anchors")
+	var anchors: Array = get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
 		return
 	# Spawn when the *nearest* anchor is farther than this — player has outrun the chain
 	# (using max distance was inverted: once you move ahead, "furthest" stays huge and nothing spawned).
-	var nearest := INF
+	var nearest: float = INF
 	for n in anchors:
 		if n is Node2D:
 			nearest = minf(nearest, n.global_position.distance_to(_player.global_position))
-	var need_more := nearest > spawn_ahead_min * 0.85
-	var ahead_count := 0
+	var need_more: bool = nearest > spawn_ahead_min * 0.85
+	var ahead_count: int = 0
 	for n in anchors:
 		if n is Node2D:
 			var to_anchor: Vector2 = n.global_position - _player.global_position
 			if to_anchor.dot(_forward_hint) > 0.0:
 				ahead_count += 1
-	var dist_to_frontier := _player.global_position.distance_to(_last_spawn_anchor_pos)
+	var dist_to_frontier: float = _player.global_position.distance_to(_last_spawn_anchor_pos)
 	if not need_more and ahead_count < min_anchors_ahead:
 		need_more = true
 	if not need_more and dist_to_frontier < preload_forward_distance:
@@ -112,7 +113,7 @@ func _try_spawn_ahead() -> void:
 
 func _cull_distant() -> void:
 	for child in get_children():
-		if child is NeonAnchor or child is LuxPickup:
+		if child is Node2D:
 			# Upward game: anything far below player is safe to cull.
 			var far_below := child.global_position.y > _player.global_position.y + cull_behind_distance
 			var far_away := child.global_position.distance_to(_player.global_position) > cull_behind_distance * 1.4
@@ -123,9 +124,9 @@ func _cull_distant() -> void:
 func update_forward_hint(from: Vector2, to: Vector2) -> void:
 	var v := to - from
 	if v.length_squared() > 0.0001:
-		var next := v.normalized()
+		var next_dir: Vector2 = v.normalized()
 		# Bias to upward direction to avoid right-left drift over long runs.
-		_forward_hint = (next + Vector2.UP * 1.5).normalized()
+		_forward_hint = (next_dir + Vector2.UP * 1.5).normalized()
 
 
 func _estimate_jump_distance() -> float:

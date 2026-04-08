@@ -1,7 +1,7 @@
 extends Node2D
 ## Bootstraps menu, LevelGenerator + Player, HUD, and The Vault.
 
-@onready var level_gen: NeonLevelGenerator = $LevelGenerator
+@onready var level_gen: Node2D = $LevelGenerator
 @onready var player: CharacterBody2D = $Player
 @onready var lbl_hi: Label = $CanvasLayer/HUD/HighScore
 @onready var lbl_mul: Label = $CanvasLayer/HUD/Multiplier
@@ -72,7 +72,7 @@ func _start_run() -> void:
 	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
 	player.process_mode = Node.PROCESS_MODE_INHERIT
-	level_gen.setup(player)
+	level_gen.call("setup", player)
 	player.initialize_after_level()
 	_refresh_hud()
 

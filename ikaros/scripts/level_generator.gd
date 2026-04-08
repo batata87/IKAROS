@@ -10,6 +10,7 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var spawn_ahead_max: float = 620.0
 @export var preload_forward_distance: float = 1500.0
 @export var min_anchors_ahead: int = 4
+@export var max_lateral_step: float = 260.0
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
 
@@ -56,9 +57,16 @@ func _queue_spawn_ahead() -> void:
 	var max_step := maxf(220.0, jump_distance * 0.9) # anti-trap cap: always within 90% jump distance
 	var min_step := maxf(150.0, max_step * 0.62)
 	var d: float = randf_range(min_step, max_step)
-	var theta: float = deg_to_rad(randf_range(-38.0, 38.0))
-	var dir: Vector2 = _forward_hint.rotated(theta).normalized()
+	var forward := _forward_hint.normalized()
+	# Keep flow mostly upward with only mild sideways variation.
+	var theta: float = deg_to_rad(randf_range(-22.0, 22.0))
+	var dir: Vector2 = forward.rotated(theta).normalized()
+	if dir.y > -0.35:
+		dir = (dir + Vector2.UP * 1.7).normalized()
 	var target: Vector2 = _last_spawn_anchor_pos + dir * d
+	# Cap single-step lateral shift so path doesn't zig-zag unpredictably.
+	var dx := clampf(target.x - _last_spawn_anchor_pos.x, -max_lateral_step, max_lateral_step)
+	target.x = _last_spawn_anchor_pos.x + dx
 	spawn_anchor_at(target)
 	_maybe_spawn_lux_between(from, target)
 	_last_spawn_anchor_pos = target
@@ -105,16 +113,19 @@ func _try_spawn_ahead() -> void:
 func _cull_distant() -> void:
 	for child in get_children():
 		if child is NeonAnchor or child is LuxPickup:
-			var to_child: Vector2 = child.global_position - _player.global_position
-			var is_behind := to_child.dot(_forward_hint) < 0.0
-			if is_behind and to_child.length() > cull_behind_distance:
+			# Upward game: anything far below player is safe to cull.
+			var far_below := child.global_position.y > _player.global_position.y + cull_behind_distance
+			var far_away := child.global_position.distance_to(_player.global_position) > cull_behind_distance * 1.4
+			if far_below or far_away:
 				child.queue_free()
 
 
 func update_forward_hint(from: Vector2, to: Vector2) -> void:
 	var v := to - from
 	if v.length_squared() > 0.0001:
-		_forward_hint = v.normalized()
+		var next := v.normalized()
+		# Bias to upward direction to avoid right-left drift over long runs.
+		_forward_hint = (next + Vector2.UP * 1.5).normalized()
 
 
 func _estimate_jump_distance() -> float:

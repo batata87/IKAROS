@@ -6,6 +6,8 @@ extends Control
 
 var _phase: float = 0.0
 var _title: Label
+var _box: VBoxContainer
+var _vault: Button
 var _tap: Label
 var _lux_hint: Label
 var _tap_tween: Tween
@@ -13,28 +15,31 @@ var _tap_tween: Tween
 
 func _ready() -> void:
 	_title = get_node_or_null("Center/VBox/Title") as Label
+	_box = get_node_or_null("Center/VBox") as VBoxContainer
+	_vault = get_node_or_null("Center/VBox/BtnVault") as Button
 	var btn_play := get_node_or_null("Center/VBox/BtnPlay") as Button
 	if btn_play:
 		btn_play.visible = false
-	var box := get_node_or_null("Center/VBox") as VBoxContainer
-	if box and _title:
+	if _box and _title:
 		_tap = Label.new()
 		_tap.name = "TapHint"
 		_tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_tap.add_theme_color_override("font_color", Color(0.0, 0.98, 0.9, 0.93))
-		_tap.add_theme_font_size_override("font_size", 44)
 		_tap.text = "Tap to ascend"
-		box.add_child(_tap)
-		box.move_child(_tap, box.get_child_count() - 2)
+		_tap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_box.add_child(_tap)
+		_box.move_child(_tap, _box.get_child_count() - 2)
 		_lux_hint = Label.new()
 		_lux_hint.name = "LuxHint"
 		_lux_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_lux_hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78, 0.9))
-		_lux_hint.add_theme_font_size_override("font_size", 26)
 		_lux_hint.text = "Collect golden LUX between the stars"
-		box.add_child(_lux_hint)
-		box.move_child(_lux_hint, box.get_child_count() - 2)
+		_lux_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_lux_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_box.add_child(_lux_hint)
+		_box.move_child(_lux_hint, _box.get_child_count() - 2)
 		_start_tap_pulse()
+	_apply_responsive_layout()
 	set_process(true)
 
 
@@ -51,6 +56,11 @@ func _draw() -> void:
 	var dot_center := center + Vector2(cos(_phase * orbit_speed), sin(_phase * orbit_speed) * 0.58) * orbit_radius
 	draw_circle(dot_center, 6.0, Color(1.0, 0.22, 0.9, 0.98))
 	draw_circle(dot_center, 11.0, Color(1.0, 0.0, 0.8, 0.25))
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_apply_responsive_layout()
 
 
 func _draw_menu_vignette() -> void:
@@ -81,3 +91,22 @@ func _start_tap_pulse() -> void:
 	_tap_tween.parallel().tween_property(_tap, "modulate:a", 1.0, 0.95)
 	_tap_tween.tween_property(_tap, "scale", Vector2.ONE, 0.95)
 	_tap_tween.parallel().tween_property(_tap, "modulate:a", 0.78, 0.95)
+
+
+func _apply_responsive_layout() -> void:
+	var size := get_viewport_rect().size
+	if size.x <= 1.0 or _title == null or _box == null or _tap == null or _lux_hint == null:
+		return
+	var available_w := maxf(220.0, size.x - 88.0)
+	var title_size := clampi(int(size.x * 0.19), 70, 112)
+	var tap_size := clampi(int(float(title_size) * 0.44), 28, 44)
+	var hint_size := clampi(int(float(title_size) * 0.28), 16, 26)
+	_title.add_theme_font_size_override("font_size", title_size)
+	_tap.add_theme_font_size_override("font_size", tap_size)
+	_lux_hint.add_theme_font_size_override("font_size", hint_size)
+	_title.custom_minimum_size.x = available_w
+	_tap.custom_minimum_size.x = available_w
+	_lux_hint.custom_minimum_size.x = available_w
+	_box.add_theme_constant_override("separation", clampi(int(size.y * 0.06), 42, 72))
+	if _vault:
+		_vault.custom_minimum_size = Vector2(minf(available_w, 340.0), 62.0)

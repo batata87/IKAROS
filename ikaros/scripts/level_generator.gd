@@ -10,9 +10,10 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var spawn_ahead_max: float = 620.0
 @export var preload_forward_distance: float = 1500.0
 @export var min_anchors_ahead: int = 2
-@export var target_anchors_alive: int = 6
+@export var target_anchors_alive: int = 5
 @export var spawn_interval_sec: float = 0.22
 @export var max_lateral_step: float = 260.0
+@export var min_anchor_center_gap: float = 250.0
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
 
@@ -61,19 +62,33 @@ func _queue_spawn_ahead() -> void:
 		return
 	var from: Vector2 = _last_spawn_anchor_pos
 	var jump_distance = _estimate_jump_distance()
-	var max_step = minf(520.0, maxf(210.0, jump_distance * 0.82))
-	var min_step = maxf(140.0, max_step * 0.55)
-	var d: float = randf_range(min_step, max_step)
-	var forward = _forward_hint.normalized()
-	# Keep flow mostly upward with only mild sideways variation.
-	var theta: float = deg_to_rad(randf_range(-22.0, 22.0))
-	var dir: Vector2 = forward.rotated(theta).normalized()
-	if dir.y > -0.35:
-		dir = (dir + Vector2.UP * 1.7).normalized()
-	var target: Vector2 = _last_spawn_anchor_pos + dir * d
-	# Cap single-step lateral shift so path doesn't zig-zag unpredictably.
-	var dx = clampf(target.x - _last_spawn_anchor_pos.x, -max_lateral_step, max_lateral_step)
-	target.x = _last_spawn_anchor_pos.x + dx
+	var max_step = minf(520.0, maxf(280.0, jump_distance * 0.8))
+	var min_step = maxf(220.0, max_step * 0.7)
+	var target: Vector2 = _last_spawn_anchor_pos
+	var ok := false
+	for _attempt in range(6):
+		var d: float = randf_range(min_step, max_step)
+		var forward = _forward_hint.normalized()
+		# Keep flow mostly upward with only mild sideways variation.
+		var theta: float = deg_to_rad(randf_range(-18.0, 18.0))
+		var dir: Vector2 = forward.rotated(theta).normalized()
+		if dir.y > -0.45:
+			dir = (dir + Vector2.UP * 1.9).normalized()
+		target = _last_spawn_anchor_pos + dir * d
+		# Cap single-step lateral shift so path doesn't zig-zag unpredictably.
+		var dx = clampf(target.x - _last_spawn_anchor_pos.x, -max_lateral_step, max_lateral_step)
+		target.x = _last_spawn_anchor_pos.x + dx
+		var nearest_to_target := INF
+		for n in get_tree().get_nodes_in_group("anchors"):
+			var a := n as Node2D
+			if a != null:
+				nearest_to_target = minf(nearest_to_target, a.global_position.distance_to(target))
+		if nearest_to_target >= min_anchor_center_gap:
+			ok = true
+			break
+	if not ok:
+		# Fallback still keeps climb moving upward even in dense fields.
+		target = _last_spawn_anchor_pos + Vector2.UP * min_step
 	spawn_anchor_at(target)
 	_maybe_spawn_lux_between(from, target)
 	_last_spawn_anchor_pos = target

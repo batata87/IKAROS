@@ -3,7 +3,9 @@ import path from "node:path";
 
 const root = process.cwd();
 const token = process.env.NOTION_TOKEN || "";
-const pageId = (process.env.NOTION_PAGE_ID || "").replace(/-/g, "");
+const rawPageId = process.env.NOTION_PAGE_ID || "";
+const pageUrl = process.env.NOTION_PAGE_URL || "";
+const pageId = (rawPageId || extractPageIdFromUrl(pageUrl) || "").replace(/-/g, "");
 const versionPath = path.join(root, "build", "version.json");
 const notesPath = path.join(root, "RELEASE_NOTES.md");
 
@@ -14,6 +16,12 @@ function readJson(filePath, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function extractPageIdFromUrl(url) {
+  if (!url) return "";
+  const m = url.match(/([a-f0-9]{32})/i);
+  return m ? m[1] : "";
 }
 
 function latestNotesSection(markdown, heading) {
@@ -45,10 +53,32 @@ async function appendToPage(children) {
   }
 }
 
+async function verifyPageAccess() {
+  const res = await fetch(`https://api.notion.com/v1/blocks/${pageId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Notion-Version": "2022-06-28",
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(
+      `Cannot access Notion page ${pageId}. ${res.status}: ${txt}. ` +
+        "Make sure the page is shared with your integration and NOTION_TOKEN is correct."
+    );
+  }
+}
+
 async function main() {
-  if (!token || !pageId) {
-    console.log("Skipping Notion release notes (missing NOTION_TOKEN or NOTION_PAGE_ID).");
-    return;
+  if (!token) {
+    throw new Error("Missing NOTION_TOKEN.");
+  }
+  if (!pageId) {
+    throw new Error(
+      "Missing NOTION_PAGE_ID (or NOTION_PAGE_URL with a valid page id in URL)."
+    );
   }
   const state = readJson(versionPath, { version: "0.0.0", build: 0, stamped_at: new Date().toISOString() });
   const stamp = `v${state.version}+b${state.build}`;
@@ -81,6 +111,7 @@ async function main() {
     { object: "block", type: "divider", divider: {} },
   ];
 
+  await verifyPageAccess();
   await appendToPage(children);
   console.log(`Published ${stamp} to Notion page.`);
 }

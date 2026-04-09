@@ -7,3 +7,10 @@
 - Prevent iOS menu tap carry-over from auto-releasing player.
 - Fix level generator bool inference in cull logic.
 - Further harden level generator against parse edge cases.
+## v0.0.1+b2
+- Date: 2026-04-08T13:55:06.695Z
+- Add automated build stamping, release notes, and in-game build label.
+- Tune iOS-native gameplay responsiveness and safety behavior.
+- Tighten mobile flow: menu alignment and upward gameplay safeguards.
+- Prevent iOS menu tap carry-over from auto-releasing player.
+- Fix level generator bool inference in cull logic.

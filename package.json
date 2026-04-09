@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "stamp:build": "node scripts/release-stamp.mjs",
-    "build": "npm run stamp:build && vite build",
+    "release:notion": "node scripts/release-notion.mjs",
+    "build": "npm run stamp:build && npm run release:notion && vite build",
     "preview": "node server.js --prod"
   },
   "dependencies": {

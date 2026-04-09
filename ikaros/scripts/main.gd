@@ -32,7 +32,7 @@ func _ready() -> void:
 	_on_lux_changed(CurrencyManager.lux)
 	_load_build_label()
 	if lbl_build:
-		lbl_build.visible = true
+		lbl_build.visible = false
 
 
 func _input(event: InputEvent) -> void:
@@ -73,8 +73,6 @@ func _start_run() -> void:
 		return
 	_run_started = true
 	main_menu.visible = false
-	if lbl_build:
-		lbl_build.visible = false
 	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
 	player.process_mode = Node.PROCESS_MODE_INHERIT
@@ -96,8 +94,6 @@ func _on_vault_pressed() -> void:
 func _on_vault_closed() -> void:
 	main_menu.visible = true
 	main_menu.process_mode = Node.PROCESS_MODE_INHERIT
-	if lbl_build:
-		lbl_build.visible = true
 	_run_started = false
 
 

@@ -35,3 +35,10 @@
 - Tune iOS-native gameplay responsiveness and safety behavior.
 - Tighten mobile flow: menu alignment and upward gameplay safeguards.
 - Prevent iOS menu tap carry-over from auto-releasing player.
+## v0.0.1+b6
+- Date: 2026-04-09T09:47:41.760Z
+- Fix iPhone menu alignment and anchor spacing flow; bump build b5.
+- Add Notion release publishing hook and bump build stamp.
+- Add automated build stamping, release notes, and in-game build label.
+- Tune iOS-native gameplay responsiveness and safety behavior.
+- Tighten mobile flow: menu alignment and upward gameplay safeguards.

@@ -109,7 +109,7 @@ func _try_spawn_ahead() -> void:
 	var anchors = get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
 		return
-	if anchors.size() < target_anchors_alive:
+	if anchors.size() < _target_anchors_alive_for_score():
 		_queue_spawn_ahead()
 		_spawn_cooldown_sec = 0.0
 		return
@@ -160,3 +160,12 @@ func _estimate_jump_distance() -> float:
 	if _player != null and _player.has_method("get_jump_distance_hint"):
 		return maxf(280.0, float(_player.call("get_jump_distance_hint")))
 	return spawn_ahead_max
+
+
+func _target_anchors_alive_for_score() -> int:
+	var s := GameManager.score
+	if s < 10:
+		return 3
+	if s < 30:
+		return 4
+	return target_anchors_alive

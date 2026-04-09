@@ -10,6 +10,7 @@ var _box: VBoxContainer
 var _vault: Button
 var _tap: Label
 var _lux_hint: Label
+var _build_stamp: Label
 var _tap_tween: Tween
 
 
@@ -39,6 +40,19 @@ func _ready() -> void:
 		_box.add_child(_lux_hint)
 		_box.move_child(_lux_hint, _box.get_child_count() - 2)
 		_start_tap_pulse()
+	_build_stamp = Label.new()
+	_build_stamp.name = "BuildStamp"
+	_build_stamp.anchors_preset = PRESET_BOTTOM_LEFT
+	_build_stamp.anchor_top = 1.0
+	_build_stamp.anchor_bottom = 1.0
+	_build_stamp.offset_left = 12.0
+	_build_stamp.offset_top = -28.0
+	_build_stamp.offset_right = 290.0
+	_build_stamp.offset_bottom = -8.0
+	_build_stamp.add_theme_font_size_override("font_size", 12)
+	_build_stamp.add_theme_color_override("font_color", Color(0.55, 0.65, 0.72, 0.92))
+	add_child(_build_stamp)
+	_load_build_stamp()
 	_apply_responsive_layout()
 	set_process(true)
 
@@ -112,3 +126,19 @@ func _apply_responsive_layout() -> void:
 	_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if _vault:
 		_vault.custom_minimum_size = Vector2(minf(available_w, 340.0), 62.0)
+
+
+func _load_build_stamp() -> void:
+	if _build_stamp == null:
+		return
+	var p := "res://build/build_info.txt"
+	if not FileAccess.file_exists(p):
+		_build_stamp.text = "build: dev"
+		return
+	var f := FileAccess.open(p, FileAccess.READ)
+	if f == null:
+		_build_stamp.text = "build: dev"
+		return
+	var txt := f.get_as_text().strip_edges()
+	f.close()
+	_build_stamp.text = txt if txt != "" else "build: dev"

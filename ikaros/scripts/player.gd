@@ -204,6 +204,8 @@ func _update_camera_zoom(delta: float) -> void:
 	var z_tgt := lerpf(zoom_tight, zoom_wide, t)
 	var zz := lerpf(_cam.zoom.x, z_tgt, 1.0 - exp(-4.2 * delta))
 	_cam.zoom = Vector2(zz, zz)
+	var off_tgt := Vector2(0.0, -180.0 if GameManager.state == GameManager.GameState.DASHING else -140.0)
+	_cam.offset = _cam.offset.lerp(off_tgt, 1.0 - exp(-5.0 * delta))
 
 
 func _input(event: InputEvent) -> void:
@@ -307,17 +309,7 @@ func _bind_anchor_events(a: NeonAnchor) -> void:
 func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
 	if _anchor == null or anchor != _anchor:
 		return
-	_anchor = null
-	_coyote_armed = false
-	_coyote_used = false
-	_ignore_capture_anchor = null
-	velocity = Vector2(0.0, dash_speed * 1.34)
-	_dash_time_sec = 0.0
-	_stuck_time_sec = 0.0
-	GameManager.set_game_state(GameManager.GameState.DASHING)
-	if trail_particles:
-		trail_particles.restart()
-		trail_particles.emitting = true
+	GameManager.trigger_fail()
 
 
 func _play_charge_blip() -> void:
@@ -385,6 +377,9 @@ func _release_dash() -> void:
 	var t_orbit := GameManager.get_time_in_current_orbit()
 	GameManager.on_dash_started(t_orbit)
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
+	if tangent.y >= -0.01:
+		# Up-only rule: ignore release while tangent points downward.
+		return
 	var mult := _centrifugal_launch_mult()
 	velocity = tangent * dash_speed * mult
 	_reset_centrifugal()
@@ -448,6 +443,9 @@ func _physics_dash(delta: float) -> void:
 		GameManager.trigger_fail()
 		return
 	if _dash_time_sec > 3.2:
+		GameManager.trigger_fail()
+		return
+	if velocity.y >= 0.0:
 		GameManager.trigger_fail()
 		return
 	if velocity.length() < 6.0:

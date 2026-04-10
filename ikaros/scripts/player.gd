@@ -17,8 +17,8 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var zoom_tight: float = 0.92
 @export var zoom_wide: float = 0.68
 @export var zoom_speed_ref: float = 920.0
-@export var launch_power: float = 760.0
-@export var max_air_speed: float = 980.0
+@export var launch_power: float = 980.0
+@export var max_air_speed: float = 1300.0
 
 var _anchor: NeonAnchor = null
 var _orbit_angle: float = 0.0
@@ -54,6 +54,9 @@ var _timer_fail_lock: bool = false
 var _capture_tween: Tween
 var _capture_tween_active: bool = false
 var _air_still_sec: float = 0.0
+var _launch_count: int = 0
+var _capture_count: int = 0
+var _last_fail_reason: String = ""
 
 
 func _ready() -> void:
@@ -172,6 +175,9 @@ func initialize_after_level() -> void:
 	_capture_blend_t = 1.0
 	_capture_tween_active = false
 	_air_still_sec = 0.0
+	_launch_count = 0
+	_capture_count = 0
+	_last_fail_reason = ""
 	_attach_to_initial_anchor()
 
 
@@ -360,6 +366,7 @@ func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
 	if absf(fall_v.y) < 30.0:
 		fall_v = Vector2(0.0, 380.0)
 	velocity = fall_v
+	_last_fail_reason = "anchor_timeout_fall"
 	GameManager.set_game_state(GameManager.GameState.FALLING)
 
 
@@ -430,6 +437,7 @@ func _release_dash() -> void:
 	var t_orbit := GameManager.get_time_in_current_orbit()
 	GameManager.on_dash_started(t_orbit)
 	velocity = launch_v
+	_launch_count += 1
 	_last_launch_velocity = velocity
 	_reset_centrifugal()
 	_anchor = null
@@ -492,12 +500,15 @@ func _physics_dash(delta: float) -> void:
 	_cap_air_velocity()
 	var col = move_and_collide(velocity * delta)
 	if col:
+		_last_fail_reason = "dash_collision"
 		GameManager.trigger_fail()
 		return
 	if _dash_time_sec > 3.2:
+		_last_fail_reason = "dash_timeout"
 		GameManager.trigger_fail()
 		return
 	if global_position.length() > max_offworld:
+		_last_fail_reason = "dash_offworld"
 		GameManager.trigger_fail()
 		return
 	_try_capture_anchor()
@@ -509,9 +520,11 @@ func _physics_fall(delta: float) -> void:
 	_cap_air_velocity()
 	var col := move_and_collide(velocity * delta)
 	if col:
+		_last_fail_reason = "fall_collision"
 		die()
 		return
 	if global_position.length() > max_offworld:
+		_last_fail_reason = "fall_offworld"
 		die()
 		return
 	_try_capture_anchor()
@@ -524,6 +537,8 @@ func apply_emergency_gravity(delta: float) -> void:
 
 
 func die() -> void:
+	if _last_fail_reason == "":
+		_last_fail_reason = "die_called"
 	GameManager.trigger_fail()
 
 
@@ -558,6 +573,7 @@ func _enforce_viewport_bounce() -> void:
 		velocity.x = -velocity.x
 		moved = true
 	if p.y > bounds.position.y + bounds.size.y:
+		_last_fail_reason = "fell_below_view"
 		die()
 		return
 	if p.y <= bounds.position.y:
@@ -588,10 +604,14 @@ func _solve_launch_velocity(target: NeonAnchor) -> Vector2:
 	if target == null:
 		var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 		return tangent * launch_power
-	var direction_vector := (target.global_position - global_position).normalized()
-	if direction_vector.length_squared() < 0.0001:
-		direction_vector = Vector2.UP
-	return direction_vector * launch_power
+	var to := target.global_position - global_position
+	var dist := maxf(1.0, to.length())
+	var t := clampf(dist / launch_power, 0.45, 0.78)
+	var g_term := Vector2(0.0, 0.5 * dash_gravity * t * t)
+	var v := (to - g_term) / t
+	if v.length() > max_air_speed:
+		v = v.normalized() * max_air_speed
+	return v
 
 
 func _update_air_still_fallback(delta: float) -> void:
@@ -683,6 +703,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 		_capture_tween_active = false
 	)
 	GameManager.on_anchor_captured(1)
+	_capture_count += 1
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 	_dash_time_sec = 0.0
 	_stuck_time_sec = 0.0
@@ -701,6 +722,26 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	if lg:
 		lg.update_forward_hint(prev_pos, global_position)
 	_spawn_score_pop(prev_pos, pts, combo_style)
+
+
+func get_debug_snapshot() -> Dictionary:
+	var nearest := INF
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as NeonAnchor
+		if a == null or not is_instance_valid(a):
+			continue
+		if _anchor != null and a == _anchor:
+			continue
+		nearest = minf(nearest, global_position.distance_to(a.global_position))
+	return {
+		"state": str(GameManager.state),
+		"spd": snappedf(velocity.length(), 0.1),
+		"vy": snappedf(velocity.y, 0.1),
+		"nearest": -1.0 if nearest == INF else snappedf(nearest, 0.1),
+		"launches": _launch_count,
+		"captures": _capture_count,
+		"fail": _last_fail_reason,
+	}
 
 
 func _update_ghost() -> void:

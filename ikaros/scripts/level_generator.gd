@@ -14,6 +14,8 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 var _player = null
 var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
 var _next_on_right: bool = true
+var _spawn_count: int = 0
+var _delete_count: int = 0
 
 
 func setup(player) -> void:
@@ -38,6 +40,7 @@ func spawn_anchor_at(global_pos: Vector2):
 	if a.has_method("apply_difficulty"):
 		a.call("apply_difficulty", GameManager.score)
 	add_child(a)
+	_spawn_count += 1
 	print("[spawn] circle at ", a.global_position)
 	cleanup_old_circles()
 	return a
@@ -112,8 +115,19 @@ func cleanup_old_circles() -> void:
 		if c == null:
 			continue
 		if c.is_in_group("anchors") and c.global_position.y > _player.global_position.y + cull_behind_distance:
+			_delete_count += 1
 			print("[cleanup] delete circle at ", c.global_position)
 			c.queue_free()
+
+
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"ahead": _count_reachable_ahead(),
+		"spawned": _spawn_count,
+		"deleted": _delete_count,
+		"last_y": _last_spawn_anchor_pos.y,
+		"next_side": "R" if _next_on_right else "L",
+	}
 
 
 func _screen_mid_x_world() -> float:

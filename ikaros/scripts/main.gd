@@ -12,6 +12,8 @@ extends Node2D
 @onready var btn_vault: Button = $CanvasLayer/MainMenu/Center/VBox/BtnVault
 @onready var btn_feedback: Button = $CanvasLayer/MainMenu/BtnFeedback
 var _run_started: bool = false
+var _debug_label: Label = null
+var _debug_overlay_enabled: bool = true
 
 
 func _ready() -> void:
@@ -33,9 +35,18 @@ func _ready() -> void:
 	_load_build_label()
 	if lbl_build:
 		lbl_build.visible = false
+	_ensure_debug_overlay()
+	set_process(true)
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var k := event as InputEventKey
+		if k.pressed and k.keycode == KEY_F3:
+			_debug_overlay_enabled = not _debug_overlay_enabled
+			if _debug_label:
+				_debug_label.visible = _debug_overlay_enabled
+			return
 	if not main_menu.visible:
 		return
 	if _run_started:
@@ -131,3 +142,51 @@ func _load_build_label() -> void:
 		lbl_build.text = "build: dev"
 	else:
 		lbl_build.text = txt
+
+
+func _process(_delta: float) -> void:
+	if _debug_label == null:
+		return
+	_debug_label.visible = _debug_overlay_enabled and _run_started and not main_menu.visible
+	if not _debug_label.visible:
+		return
+	var fps := Engine.get_frames_per_second()
+	var p_snap: Dictionary = {}
+	var l_snap: Dictionary = {}
+	if player != null and player.has_method("get_debug_snapshot"):
+		p_snap = player.call("get_debug_snapshot")
+	if level_gen != null and level_gen.has_method("get_debug_snapshot"):
+		l_snap = level_gen.call("get_debug_snapshot")
+	_debug_label.text = "FPS:%d S:%s V:%.1f vy:%.1f N:%.1f\nL:%d C:%d F:%s | A:%d Sp:%d Del:%d Next:%s" % [
+		fps,
+		str(p_snap.get("state", "?")),
+		float(p_snap.get("spd", 0.0)),
+		float(p_snap.get("vy", 0.0)),
+		float(p_snap.get("nearest", -1.0)),
+		int(p_snap.get("launches", 0)),
+		int(p_snap.get("captures", 0)),
+		str(p_snap.get("fail", "")),
+		int(l_snap.get("ahead", 0)),
+		int(l_snap.get("spawned", 0)),
+		int(l_snap.get("deleted", 0)),
+		str(l_snap.get("next_side", "?")),
+	]
+
+
+func _ensure_debug_overlay() -> void:
+	if _debug_label != null:
+		return
+	_debug_label = Label.new()
+	_debug_label.name = "DebugOverlay"
+	_debug_label.anchors_preset = Control.PRESET_TOP_LEFT
+	_debug_label.offset_left = 16.0
+	_debug_label.offset_top = 90.0
+	_debug_label.offset_right = 640.0
+	_debug_label.offset_bottom = 200.0
+	_debug_label.add_theme_font_size_override("font_size", 14)
+	_debug_label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.75, 0.96))
+	_debug_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	_debug_label.add_theme_constant_override("shadow_offset_x", 1)
+	_debug_label.add_theme_constant_override("shadow_offset_y", 1)
+	_debug_label.text = ""
+	$CanvasLayer/HUD.add_child(_debug_label)

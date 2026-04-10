@@ -37,8 +37,19 @@
 - Prevent iOS menu tap carry-over from auto-releasing player.
 ## v0.0.1+b6
 - Date: 2026-04-09T09:47:41.760Z
+- Gameplay: reduced close-cluster circle spawning and made early anchor density easier to read.
+- Gameplay: fixed timer fairness behavior at upper circles (countdown start/continuation logic).
+- Gameplay: enforced up-only jump/capture flow to prevent downward recovery loops.
+- Gameplay: added stronger anti-stuck and anti-endless-flight fail-safe checks.
+- Camera: adjusted upward lead so upcoming circles remain visible.
+- UI: welcome-screen alignment and build stamp placement corrected for iPhone aspect ratios.
+## v0.0.1+b7
+- Date: 2026-04-09T09:52:49.283Z
+- Gameplay: anchor chain progression tuned to reduce early clutter and improve upward readability.
+- Gameplay: countdown timer fairness improved so active anchor timer no longer stalls at upper heights once started.
+- Gameplay: strictly upward movement enforcement (downward/backward dash paths now fail instead of drifting).
+- Gameplay: anti-stuck/endless-flight safeguards tightened for dash and timeout states.
+- Camera: upward lead offset added to keep upcoming circles visible near top of screen.
+- UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
+- Fix welcome build label visibility, spawn progression, and up-only dash flow; bump b6.
 - Fix iPhone menu alignment and anchor spacing flow; bump build b5.
-- Add Notion release publishing hook and bump build stamp.
-- Add automated build stamping, release notes, and in-game build label.
-- Tune iOS-native gameplay responsiveness and safety behavior.
-- Tighten mobile flow: menu alignment and upward gameplay safeguards.

@@ -109,6 +109,15 @@ func _try_spawn_ahead() -> void:
 	var anchors = get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
 		return
+	var above_player := 0
+	for n in anchors:
+		var a := n as Node2D
+		if a != null and a.global_position.y < _player.global_position.y - 8.0:
+			above_player += 1
+	if above_player < 2:
+		_queue_spawn_ahead()
+		_spawn_cooldown_sec = 0.0
+		return
 	if anchors.size() < _target_anchors_alive_for_score():
 		_queue_spawn_ahead()
 		_spawn_cooldown_sec = 0.0

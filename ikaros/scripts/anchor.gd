@@ -20,6 +20,7 @@ var _danger_tween: Tween
 var _active_orbit_anchor: bool = false
 var _active_start_orbit_radius: float = 90.0
 var _target_reachable: bool = false
+var _countdown_started: bool = false
 var _remaining_sec: float = 4.6
 var _danger_t: float = 0.0
 
@@ -55,9 +56,10 @@ func _draw() -> void:
 func _process(delta: float) -> void:
 	if not shrink_enabled or not _active_orbit_anchor:
 		return
-	if not _target_reachable:
+	if not _countdown_started and not _target_reachable:
 		_stop_danger_tween()
 		return
+	_countdown_started = true
 	_resume_danger_tween()
 	_remaining_sec = maxf(0.0, _remaining_sec - delta)
 	var progress := 1.0 - (_remaining_sec / maxf(countdown_sec, 0.001))
@@ -92,6 +94,7 @@ func _set_countdown_for_active_anchor() -> void:
 	_remaining_sec = maxf(countdown_sec, 0.01)
 	_danger_t = 0.0
 	_target_reachable = false
+	_countdown_started = false
 	queue_redraw()
 
 

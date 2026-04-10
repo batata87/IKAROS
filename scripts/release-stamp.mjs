@@ -8,6 +8,7 @@ const versionPath = path.join(root, "build", "version.json");
 const backendInfoPath = path.join(root, "build", "build_info.txt");
 const godotInfoPath = path.join(root, "ikaros", "build", "build_info.txt");
 const releaseNotesPath = path.join(root, "RELEASE_NOTES.md");
+const manualNotesPath = path.join(root, "build", "release_notes_input.md");
 
 const now = new Date();
 const iso = now.toISOString();
@@ -23,6 +24,18 @@ function readJson(filePath, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function readManualBullets(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const lines = fs
+    .readFileSync(filePath, "utf8")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines
+    .map((l) => (l.startsWith("- ") ? l.slice(2).trim() : l))
+    .filter(Boolean);
 }
 
 const pkg = readJson(pkgPath, { version: "0.0.0" });
@@ -57,10 +70,13 @@ try {
   commits = ["Build stamp update."];
 }
 
+const manualBullets = readManualBullets(manualNotesPath);
+const mergedBullets = [...manualBullets, ...commits].slice(0, 8);
+
 const entry = [
   `## ${stamp}`,
   `- Date: ${iso}`,
-  ...commits.slice(0, 5).map((c) => `- ${c}`),
+  ...mergedBullets.map((c) => `- ${c}`),
   "",
 ].join("\n");
 

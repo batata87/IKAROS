@@ -99,26 +99,27 @@ func _queue_spawn_ahead() -> void:
 func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 	if randf() > lux_spawn_chance:
 		return
-	var jump_vel := Vector2.UP * _estimate_jump_distance()
+	var jump_vel: Vector2 = Vector2.UP * _estimate_jump_distance()
 	if _player != null and _player.has_method("get_launch_velocity_hint"):
-		jump_vel = _player.call("get_launch_velocity_hint")
-	var g := 1080.0
+		jump_vel = _player.call("get_launch_velocity_hint") as Vector2
+	var g: float = 1080.0
 	if _player != null:
 		var maybe_g = _player.get("dash_gravity")
 		if maybe_g != null:
 			g = float(maybe_g)
 	var travel_time := clampf(from.distance_to(to) / maxf(220.0, jump_vel.length()), 0.28, 0.95)
 	var t := randf_range(0.32, 0.68) * travel_time
-	var pos := from + jump_vel * t + Vector2(0.0, 0.5 * g * t * t)
+	var pos: Vector2 = from + jump_vel * t + Vector2(0.0, 0.5 * g * t * t)
 	pos.x = clampf(pos.x, minf(from.x, to.x) - 90.0, maxf(from.x, to.x) + 90.0)
 	pos.y = minf(pos.y, maxf(from.y, to.y) - 28.0)
 	for n in get_tree().get_nodes_in_group("anchors"):
 		var a := n as Node2D
 		if a == null:
 			continue
-		var capture_r := 64.0
-		if "capture_radius" in a:
-			capture_r = float(a.capture_radius)
+		var capture_r: float = 64.0
+		var maybe_capture = a.get("capture_radius")
+		if maybe_capture != null:
+			capture_r = float(maybe_capture)
 		if pos.distance_to(a.global_position) < capture_r + 26.0:
 			return
 	var lux = LUX_SCENE.instantiate()
@@ -198,10 +199,10 @@ func _has_anchor_in_jump_range() -> bool:
 func _force_spawn_on_path() -> void:
 	if _player == null:
 		return
-	var jump_distance := _estimate_jump_distance()
-	var target := _player.global_position + Vector2.UP * maxf(220.0, jump_distance * force_spawn_jump_factor)
+	var jump_distance: float = _estimate_jump_distance()
+	var target: Vector2 = _player.global_position + Vector2.UP * maxf(220.0, jump_distance * force_spawn_jump_factor)
 	target.x = lerpf(_player.global_position.x, _last_spawn_anchor_pos.x, 0.25)
-	var from := _last_spawn_anchor_pos
+	var from: Vector2 = _last_spawn_anchor_pos
 	var a = spawn_anchor_at(target)
 	_maybe_spawn_lux_between(from, a.global_position)
 	_last_spawn_anchor_pos = a.global_position

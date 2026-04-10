@@ -203,7 +203,7 @@ func _physics_process(delta: float) -> void:
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
-	if _anchor == null and velocity.length() < 10.0:
+	if _anchor == null and GameManager.state != GameManager.GameState.GAMEOVER:
 		apply_emergency_gravity(delta)
 	_enforce_viewport_bounce()
 	if _anchor == null and (GameManager.state == GameManager.GameState.DASHING or GameManager.state == GameManager.GameState.FALLING) and velocity.length() < 5.0:

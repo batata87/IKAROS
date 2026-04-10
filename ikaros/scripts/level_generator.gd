@@ -268,7 +268,7 @@ func _ensure_lux_presence() -> void:
 	for c in get_children():
 		if c is LuxPickup:
 			return
-	var pos := _player.global_position + Vector2(0.0, -200.0)
+	var pos: Vector2 = _player.global_position + Vector2(0.0, -200.0)
 	for n in get_tree().get_nodes_in_group("anchors"):
 		var a := n as Node2D
 		if a == null:

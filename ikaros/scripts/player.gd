@@ -67,9 +67,6 @@ func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 0
 	_ghost_line = get_node_or_null("GhostLine") as Line2D
-	if _ghost_line != null:
-		_ghost_line.queue_free()
-		_ghost_line = null
 	_setup_screen_safe_container()
 	_setup_ghost_line_style()
 	if _charge_hum and _charge_hum.stream == null:
@@ -511,7 +508,6 @@ func _spawn_coyote_fx() -> void:
 func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
-	velocity.y += dash_gravity * delta
 	_apply_subtle_magnet(delta)
 	_cap_air_velocity()
 	var col = move_and_collide(velocity * delta)
@@ -606,6 +602,9 @@ func _solve_launch_velocity() -> Vector2:
 
 func _update_air_still_fallback(delta: float) -> void:
 	if _anchor != null:
+		_air_still_sec = 0.0
+		return
+	if GameManager.state == GameManager.GameState.DASHING:
 		_air_still_sec = 0.0
 		return
 	if velocity.length() < 10.0:

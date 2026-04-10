@@ -10,7 +10,7 @@ func _physics_process(_delta: float) -> void:
 	var p := get_tree().get_first_node_in_group("player") as Node2D
 	if p == null:
 		return
-	if global_position.distance_to(p.global_position) <= pickup_radius:
+	if global_position.distance_to(p.global_position) <= pickup_radius * 1.2:
 		CurrencyManager.add_lux(value)
 		CurrencyManager.play_lux_pickup_chime()
 		queue_free()

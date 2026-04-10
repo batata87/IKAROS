@@ -83,3 +83,13 @@
 - UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
 - Implement validated spawning and boundary safety net for iOS.
 - Fix Godot type inference for forced LUX spawn position.
+## v0.0.1+b11
+- Date: 2026-04-10T10:47:39.552Z
+- Gameplay: anchor chain progression tuned to reduce early clutter and improve upward readability.
+- Gameplay: countdown timer fairness improved so active anchor timer no longer stalls at upper heights once started.
+- Gameplay: strictly upward movement enforcement (downward/backward dash paths now fail instead of drifting).
+- Gameplay: anti-stuck/endless-flight safeguards tightened for dash and timeout states.
+- Camera: upward lead offset added to keep upcoming circles visible near top of screen.
+- UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
+- Rewrite gameplay to vertical-track spawning model.
+- Implement validated spawning and boundary safety net for iOS.

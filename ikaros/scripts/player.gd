@@ -51,6 +51,12 @@ var _capture_blend_t: float = 1.0
 var _timer_fail_lock: bool = false
 var _capture_tween: Tween
 var _capture_tween_active: bool = false
+var _guide_active: bool = false
+var _guide_elapsed: float = 0.0
+var _guide_duration: float = 0.0
+var _guide_start: Vector2 = Vector2.ZERO
+var _guide_point: Vector2 = Vector2.ZERO
+var _air_still_sec: float = 0.0
 
 
 func _ready() -> void:
@@ -168,6 +174,8 @@ func initialize_after_level() -> void:
 	_timer_fail_lock = false
 	_capture_blend_t = 1.0
 	_capture_tween_active = false
+	_guide_active = false
+	_air_still_sec = 0.0
 	_attach_to_initial_anchor()
 
 
@@ -203,12 +211,8 @@ func _physics_process(delta: float) -> void:
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
-	if _anchor == null and GameManager.state != GameManager.GameState.GAMEOVER:
-		apply_emergency_gravity(delta)
 	_enforce_viewport_bounce()
-	if _anchor == null and (GameManager.state == GameManager.GameState.DASHING or GameManager.state == GameManager.GameState.FALLING) and velocity.length() < 5.0:
-		die()
-		return
+	_update_air_still_fallback(delta)
 	queue_redraw()
 
 
@@ -423,16 +427,13 @@ func _centrifugal_launch_mult() -> float:
 func _release_dash() -> void:
 	if _anchor == null:
 		return
-	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
-	if tangent.y >= -0.01:
-		# Up-only rule: ignore release while tangent points downward.
-		return
+	var target := _pick_next_target_anchor()
+	var launch_v := _solve_launch_velocity(target)
 	_anchor.set_active_orbit_anchor(false)
 	_ignore_capture_anchor = _anchor
 	var t_orbit := GameManager.get_time_in_current_orbit()
 	GameManager.on_dash_started(t_orbit)
-	var mult := _centrifugal_launch_mult()
-	velocity = tangent * dash_speed * mult
+	velocity = launch_v
 	_last_launch_velocity = velocity
 	_reset_centrifugal()
 	_anchor = null
@@ -441,6 +442,7 @@ func _release_dash() -> void:
 	_coyote_used = false
 	_coyote_armed = velocity.y > 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
+	_start_magnetic_guide(target)
 	if trail_particles:
 		trail_particles.restart()
 		trail_particles.emitting = true
@@ -491,15 +493,21 @@ func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
 	velocity.y += dash_gravity * delta
-	var col := move_and_collide(velocity * delta)
+	var col = null
+	if _guide_active:
+		_guide_elapsed += delta
+		var gt := clampf(_guide_elapsed / maxf(_guide_duration, 0.001), 0.0, 1.0)
+		var guided_target := _guide_start.lerp(_guide_point, gt)
+		col = move_and_collide(guided_target - global_position)
+		if gt >= 1.0:
+			_guide_active = false
+	else:
+		col = move_and_collide(velocity * delta)
 	if col:
 		GameManager.trigger_fail()
 		return
 	if _dash_time_sec > 3.2:
 		GameManager.trigger_fail()
-		return
-	if velocity.length() < 5.0 and _anchor == null:
-		die()
 		return
 	if global_position.length() > max_offworld:
 		GameManager.trigger_fail()
@@ -511,9 +519,6 @@ func _physics_fall(delta: float) -> void:
 	velocity.y += dash_gravity * delta
 	var col := move_and_collide(velocity * delta)
 	if col:
-		die()
-		return
-	if velocity.length() < 5.0 and _anchor == null:
 		die()
 		return
 	if global_position.length() > max_offworld:
@@ -535,16 +540,9 @@ func die() -> void:
 func _safe_play_bounds() -> Rect2:
 	var vp := get_viewport()
 	var screen_rect := vp.get_visible_rect()
-	var safe := DisplayServer.get_display_safe_area()
-	if safe.size.x <= 0.0 or safe.size.y <= 0.0:
-		safe = screen_rect
-	var left_px := maxf(0.0, safe.position.x - screen_rect.position.x)
-	var top_px := maxf(0.0, safe.position.y - screen_rect.position.y)
-	var right_px := maxf(0.0, (screen_rect.position.x + screen_rect.size.x) - (safe.position.x + safe.size.x))
-	var bottom_px := maxf(0.0, (screen_rect.position.y + screen_rect.size.y) - (safe.position.y + safe.size.y))
-	var screen_top_left_world := _screen_to_world(Vector2(left_px, top_px))
-	var screen_top_right_world := _screen_to_world(Vector2(screen_rect.size.x - right_px, top_px))
-	var screen_bottom_left_world := _screen_to_world(Vector2(left_px, screen_rect.size.y - bottom_px))
+	var screen_top_left_world := _screen_to_world(Vector2(0.0, 0.0))
+	var screen_top_right_world := _screen_to_world(Vector2(screen_rect.size.x, 0.0))
+	var screen_bottom_left_world := _screen_to_world(Vector2(0.0, screen_rect.size.y))
 	return Rect2(
 		screen_top_left_world,
 		Vector2(screen_top_right_world.x - screen_top_left_world.x, screen_bottom_left_world.y - screen_top_left_world.y)
@@ -563,11 +561,11 @@ func _enforce_viewport_bounce() -> void:
 	var moved := false
 	if p.x <= bounds.position.x:
 		p.x = bounds.position.x
-		velocity.x = -velocity.x * 0.8
+		velocity.x = -velocity.x
 		moved = true
 	elif p.x >= bounds.position.x + bounds.size.x:
 		p.x = bounds.position.x + bounds.size.x
-		velocity.x = -velocity.x * 0.8
+		velocity.x = -velocity.x
 		moved = true
 	if p.y > bounds.position.y + bounds.size.y:
 		die()
@@ -578,6 +576,58 @@ func _enforce_viewport_bounce() -> void:
 		moved = true
 	if moved:
 		global_position = p
+
+
+func _pick_next_target_anchor() -> NeonAnchor:
+	var best: NeonAnchor = null
+	var best_d2 := INF
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as NeonAnchor
+		if a == null or not is_instance_valid(a) or a == _anchor:
+			continue
+		if a.global_position.y >= global_position.y - 2.0:
+			continue
+		var d2 := global_position.distance_squared_to(a.global_position)
+		if d2 < best_d2:
+			best_d2 = d2
+			best = a
+	return best
+
+
+func _solve_launch_velocity(target: NeonAnchor) -> Vector2:
+	if target == null:
+		var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
+		return tangent * dash_speed * _centrifugal_launch_mult()
+	var to := target.global_position
+	var t := maxf(0.35, jump_arc_sec)
+	var g_term := Vector2(0.0, 0.5 * dash_gravity * t * t)
+	var v := (to - global_position - g_term) / t
+	var max_speed := dash_speed * _centrifugal_launch_mult() * 1.18
+	if v.length() > max_speed:
+		v = v.normalized() * max_speed
+	return v
+
+
+func _start_magnetic_guide(target: NeonAnchor) -> void:
+	_guide_active = target != null
+	if not _guide_active:
+		return
+	_guide_elapsed = 0.0
+	_guide_duration = maxf(0.08, jump_arc_sec * 0.3)
+	_guide_start = global_position
+	_guide_point = _guide_start.lerp(target.global_position, 0.4)
+
+
+func _update_air_still_fallback(delta: float) -> void:
+	if _anchor != null:
+		_air_still_sec = 0.0
+		return
+	if velocity.length() < 10.0:
+		_air_still_sec += delta
+		if _air_still_sec >= 0.1:
+			apply_emergency_gravity(delta)
+	else:
+		_air_still_sec = 0.0
 
 
 func _try_capture_anchor() -> void:

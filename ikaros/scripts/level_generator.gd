@@ -45,7 +45,7 @@ func _spawn_next_track_anchor() -> void:
 	if _player == null:
 		return
 	var from: Vector2 = _last_spawn_anchor_pos
-	var target := Vector2(_lane_x(_next_on_right), _last_spawn_anchor_pos.y - vertical_step)
+	var target: Vector2 = Vector2(_lane_x(_next_on_right, from.x), _last_spawn_anchor_pos.y - vertical_step)
 	spawn_anchor_at(target)
 	_spawn_lux_midpoint(from, target)
 	_last_spawn_anchor_pos = target
@@ -117,12 +117,22 @@ func _screen_mid_x_world() -> float:
 	return world_mid.x
 
 
-func _lane_x(on_right: bool) -> float:
+func _lane_x(on_right: bool, prev_x: float) -> float:
 	var vp := get_viewport()
 	var rect := vp.get_visible_rect()
 	var left_world := vp.get_canvas_transform().affine_inverse() * Vector2(0.0, rect.size.y * 0.5)
 	var right_world := vp.get_canvas_transform().affine_inverse() * Vector2(rect.size.x, rect.size.y * 0.5)
 	var mid_x := (left_world.x + right_world.x) * 0.5
+	var min_x: float
+	var max_x: float
 	if on_right:
-		return lerpf(mid_x + 60.0, right_world.x - 60.0, randf())
-	return lerpf(left_world.x + 60.0, mid_x - 60.0, randf())
+		min_x = mid_x + 28.0
+		max_x = minf(mid_x + 100.0, prev_x + 200.0)
+		if max_x < min_x:
+			max_x = min_x
+		return randf_range(min_x, max_x)
+	max_x = mid_x - 28.0
+	min_x = maxf(mid_x - 100.0, prev_x - 200.0)
+	if min_x > max_x:
+		min_x = max_x
+	return randf_range(min_x, max_x)

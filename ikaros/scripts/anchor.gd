@@ -116,7 +116,7 @@ func play_capture_squash() -> void:
 
 
 func contains_point_global(p: Vector2) -> bool:
-	return p.distance_to(global_position) <= capture_radius
+	return p.distance_to(global_position) <= capture_radius * 1.2
 
 
 func set_active_orbit_anchor(active: bool) -> void:

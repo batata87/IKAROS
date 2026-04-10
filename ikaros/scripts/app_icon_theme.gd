@@ -24,6 +24,11 @@ func apply_window_icon() -> void:
 	var path: String = PATH_LIGHT
 	if DisplayServer.is_dark_mode_supported() and DisplayServer.is_dark_mode():
 		path = PATH_DARK
+	if not FileAccess.file_exists(path):
+		path = PATH_LIGHT
+	if not FileAccess.file_exists(path):
+		push_warning("AppIconTheme: no icon file found (light/dark).")
+		return
 	var tex: Texture2D = load(path) as Texture2D
 	if tex == null:
 		push_warning("AppIconTheme: could not load %s" % path)

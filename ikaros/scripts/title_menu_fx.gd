@@ -78,18 +78,18 @@ func _notification(what: int) -> void:
 
 
 func _draw_menu_vignette() -> void:
-	var size := get_viewport_rect().size
-	if size.x <= 1.0 or size.y <= 1.0:
+	var vp_size := get_viewport_rect().size
+	if vp_size.x <= 1.0 or vp_size.y <= 1.0:
 		return
-	var center := size * 0.5
-	var max_r := size.length() * 0.62
+	var center := vp_size * 0.5
+	var max_r := vp_size.length() * 0.62
 	for i in range(6):
 		var t := float(i) / 5.0
 		var r := lerpf(max_r * 0.2, max_r, t)
 		var a := lerpf(0.1, 0.0, t)
 		draw_circle(center, r, Color(0.18, 0.5, 0.45, a))
 	# baseline dark veil keeps OLED-like deep blacks.
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.16), true)
+	draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.0, 0.0, 0.0, 0.16), true)
 
 
 func _start_tap_pulse() -> void:
@@ -108,11 +108,11 @@ func _start_tap_pulse() -> void:
 
 
 func _apply_responsive_layout() -> void:
-	var size := get_viewport_rect().size
-	if size.x <= 1.0 or _title == null or _box == null or _tap == null or _lux_hint == null:
+	var vp_size := get_viewport_rect().size
+	if vp_size.x <= 1.0 or _title == null or _box == null or _tap == null or _lux_hint == null:
 		return
-	var available_w := maxf(220.0, size.x - 88.0)
-	var title_size := clampi(int(size.x * 0.165), 56, 102)
+	var available_w := maxf(220.0, vp_size.x - 88.0)
+	var title_size := clampi(int(vp_size.x * 0.165), 56, 102)
 	var tap_size := clampi(int(float(title_size) * 0.44), 28, 44)
 	var hint_size := clampi(int(float(title_size) * 0.28), 16, 26)
 	_title.add_theme_font_size_override("font_size", title_size)
@@ -121,7 +121,7 @@ func _apply_responsive_layout() -> void:
 	_title.custom_minimum_size.x = available_w
 	_tap.custom_minimum_size.x = available_w
 	_lux_hint.custom_minimum_size.x = available_w
-	_box.add_theme_constant_override("separation", clampi(int(size.y * 0.06), 42, 72))
+	_box.add_theme_constant_override("separation", clampi(int(vp_size.y * 0.06), 42, 72))
 	_box.custom_minimum_size.x = available_w
 	_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if _vault:

@@ -114,9 +114,11 @@ func cleanup_old_circles() -> void:
 		var c := child as Node2D
 		if c == null:
 			continue
-		if c.is_in_group("anchors") and c.global_position.y > _player.global_position.y + cull_behind_distance:
+		var is_anchor := c.is_in_group("anchors")
+		var is_lux := c is LuxPickup
+		if (is_anchor or is_lux) and c.global_position.y > _player.global_position.y + cull_behind_distance:
 			_delete_count += 1
-			print("[cleanup] delete circle at ", c.global_position)
+			print("[cleanup] delete ", ("circle" if is_anchor else "lux"), " at ", c.global_position)
 			c.queue_free()
 
 

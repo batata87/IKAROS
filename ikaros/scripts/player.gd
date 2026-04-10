@@ -12,7 +12,7 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var dash_speed: float = 715.0
 @export var dash_gravity: float = 1080.0
 @export var max_offworld: float = 5200.0
-@export var ghost_length: float = 220.0
+@export var ghost_length: float = 200.0
 @export var jump_arc_sec: float = 0.56
 @export var zoom_tight: float = 0.92
 @export var zoom_wide: float = 0.68
@@ -57,6 +57,9 @@ var _air_still_sec: float = 0.0
 var _launch_count: int = 0
 var _capture_count: int = 0
 var _last_fail_reason: String = ""
+var _left_wall: StaticBody2D = null
+var _right_wall: StaticBody2D = null
+var _kill_floor: StaticBody2D = null
 
 
 func _ready() -> void:
@@ -64,6 +67,11 @@ func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 0
 	_ghost_line = get_node_or_null("GhostLine") as Line2D
+	if _ghost_line != null:
+		_ghost_line.queue_free()
+		_ghost_line = null
+	_setup_screen_safe_container()
+	_setup_ghost_line_style()
 	if _charge_hum and _charge_hum.stream == null:
 		var g := AudioStreamGenerator.new()
 		g.mix_rate = 24000.0
@@ -74,8 +82,11 @@ func _ready() -> void:
 	_on_equipped_theme(c[0], c[1], c[2], c[3])
 	_configure_trail_performance()
 	if _cam != null:
-		_cam.position_smoothing_enabled = true
+		_cam.position_smoothing_enabled = false
 		_cam.position_smoothing_speed = 5.0
+	if trail_particles != null:
+		trail_particles.z_index = -5
+		trail_particles.amount = mini(trail_particles.amount, 16)
 	queue_redraw()
 
 
@@ -182,6 +193,7 @@ func initialize_after_level() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_screen_safe_container()
 	_poll_mobile_pointer_tap()
 	if GameManager.state == GameManager.GameState.GAMEOVER:
 		velocity = Vector2.ZERO
@@ -196,14 +208,17 @@ func _physics_process(delta: float) -> void:
 	match GameManager.state:
 		GameManager.GameState.ORBITING:
 			_physics_orbit(delta)
-			_update_ghost()
 			_update_charge_audio()
 		GameManager.GameState.DASHING:
 			_physics_dash(delta)
+			if _ghost_line:
+				_ghost_line.clear_points()
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 		GameManager.GameState.FALLING:
 			_physics_fall(delta)
+			if _ghost_line:
+				_ghost_line.clear_points()
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 		_:
@@ -255,7 +270,9 @@ func _input(event: InputEvent) -> void:
 		return
 	_last_tap_msec = now
 	_on_tap()
-	get_viewport().set_input_as_handled()
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
 
 
 func _is_tap_event(event: InputEvent) -> bool:
@@ -430,8 +447,7 @@ func _centrifugal_launch_mult() -> float:
 func _release_dash() -> void:
 	if _anchor == null:
 		return
-	var target := _pick_next_target_anchor()
-	var launch_v := _solve_launch_velocity(target)
+	var launch_v := _solve_launch_velocity()
 	_anchor.set_active_orbit_anchor(false)
 	_ignore_capture_anchor = _anchor
 	var t_orbit := GameManager.get_time_in_current_orbit()
@@ -500,6 +516,8 @@ func _physics_dash(delta: float) -> void:
 	_cap_air_velocity()
 	var col = move_and_collide(velocity * delta)
 	if col:
+		if _handle_air_collision(col):
+			return
 		_last_fail_reason = "dash_collision"
 		GameManager.trigger_fail()
 		return
@@ -520,6 +538,8 @@ func _physics_fall(delta: float) -> void:
 	_cap_air_velocity()
 	var col := move_and_collide(velocity * delta)
 	if col:
+		if _handle_air_collision(col):
+			return
 		_last_fail_reason = "fall_collision"
 		die()
 		return
@@ -559,29 +579,8 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 
 func _enforce_viewport_bounce() -> void:
-	if GameManager.state != GameManager.GameState.DASHING and GameManager.state != GameManager.GameState.FALLING:
-		return
-	var bounds := _safe_play_bounds()
-	var p := global_position
-	var moved := false
-	if p.x <= bounds.position.x:
-		p.x = bounds.position.x
-		velocity.x = -velocity.x
-		moved = true
-	elif p.x >= bounds.position.x + bounds.size.x:
-		p.x = bounds.position.x + bounds.size.x
-		velocity.x = -velocity.x
-		moved = true
-	if p.y > bounds.position.y + bounds.size.y:
-		_last_fail_reason = "fell_below_view"
-		die()
-		return
-	if p.y <= bounds.position.y:
-		p.y = bounds.position.y
-		velocity = velocity.bounce(Vector2.DOWN) * 0.8
-		moved = true
-	if moved:
-		global_position = p
+	# Physics container (screen walls + kill floor) owns boundary behavior.
+	return
 
 
 func _pick_next_target_anchor() -> NeonAnchor:
@@ -600,18 +599,9 @@ func _pick_next_target_anchor() -> NeonAnchor:
 	return best
 
 
-func _solve_launch_velocity(target: NeonAnchor) -> Vector2:
-	if target == null:
-		var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
-		return tangent * launch_power
-	var to := target.global_position - global_position
-	var dist := maxf(1.0, to.length())
-	var t := clampf(dist / launch_power, 0.45, 0.78)
-	var g_term := Vector2(0.0, 0.5 * dash_gravity * t * t)
-	var v := (to - g_term) / t
-	if v.length() > max_air_speed:
-		v = v.normalized() * max_air_speed
-	return v
+func _solve_launch_velocity() -> Vector2:
+	var direction_vector := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
+	return direction_vector * launch_power
 
 
 func _update_air_still_fallback(delta: float) -> void:
@@ -747,7 +737,94 @@ func get_debug_snapshot() -> Dictionary:
 func _update_ghost() -> void:
 	if _ghost_line == null or _anchor == null:
 		return
+	if not _is_pointer_down():
+		_ghost_line.clear_points()
+		return
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	_ghost_line.clear_points()
 	_ghost_line.add_point(Vector2.ZERO)
 	_ghost_line.add_point(tangent * ghost_length * _draw_visual_scale())
+
+
+func _is_pointer_down() -> bool:
+	return (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
+
+
+func _setup_ghost_line_style() -> void:
+	if _ghost_line == null:
+		return
+	_ghost_line.width = 4.0
+	_ghost_line.antialiased = true
+	_ghost_line.default_color = Color(0.0, 0.95, 0.996, 0.96)
+	var g := Gradient.new()
+	g.add_point(0.0, Color(0.0, 0.95, 0.996, 0.98))
+	g.add_point(1.0, Color(0.0, 0.95, 0.996, 0.0))
+	_ghost_line.gradient = g
+	var img := Image.create(16, 1, false, Image.FORMAT_RGBA8)
+	for x in range(16):
+		var on := x < 9
+		img.set_pixel(x, 0, Color(1, 1, 1, 1) if on else Color(1, 1, 1, 0))
+	var tex := ImageTexture.create_from_image(img)
+	_ghost_line.texture = tex
+	_ghost_line.texture_mode = Line2D.LINE_TEXTURE_TILE
+
+
+func _setup_screen_safe_container() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	_left_wall = _make_boundary_body("LeftWall", parent, "screen_wall")
+	_right_wall = _make_boundary_body("RightWall", parent, "screen_wall")
+	_kill_floor = _make_boundary_body("KillFloor", parent, "screen_kill_zone")
+	collision_mask = 8
+
+
+func _make_boundary_body(name: String, parent: Node, group_name: String) -> StaticBody2D:
+	var b := StaticBody2D.new()
+	b.name = name
+	b.collision_layer = 8
+	b.collision_mask = 0
+	var pm := PhysicsMaterial.new()
+	pm.bounce = 0.8
+	pm.friction = 0.0
+	b.physics_material_override = pm
+	var cs := CollisionShape2D.new()
+	cs.shape = WorldBoundaryShape2D.new()
+	b.add_child(cs)
+	b.add_to_group(group_name)
+	parent.add_child(b)
+	return b
+
+
+func _update_screen_safe_container() -> void:
+	if _left_wall == null or _right_wall == null or _kill_floor == null:
+		return
+	var rect := get_viewport().get_visible_rect()
+	var left_w := _screen_to_world(Vector2(0.0, rect.size.y * 0.5)).x
+	var right_w := _screen_to_world(Vector2(rect.size.x, rect.size.y * 0.5)).x
+	var floor_y := global_position.y + 500.0
+	var left_shape := (_left_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
+	var right_shape := (_right_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
+	var floor_shape := (_kill_floor.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
+	if left_shape != null:
+		left_shape.plane = Plane(Vector3(1.0, 0.0, 0.0), left_w)
+	if right_shape != null:
+		right_shape.plane = Plane(Vector3(-1.0, 0.0, 0.0), -right_w)
+	if floor_shape != null:
+		floor_shape.plane = Plane(Vector3(0.0, -1.0, 0.0), -floor_y)
+
+
+func _handle_air_collision(col: KinematicCollision2D) -> bool:
+	if col == null:
+		return false
+	var collider := col.get_collider()
+	if collider is Node:
+		var n := collider as Node
+		if n.is_in_group("screen_wall"):
+			velocity.x = -velocity.x
+			return true
+		if n.is_in_group("screen_kill_zone"):
+			_last_fail_reason = "kill_zone"
+			die()
+			return true
+	return false

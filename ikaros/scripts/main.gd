@@ -11,6 +11,7 @@ extends Node2D
 @onready var store_screen = $CanvasLayer/StoreScreen
 @onready var btn_vault: Button = $CanvasLayer/MainMenu/Center/VBox/BtnVault
 @onready var btn_feedback: Button = $CanvasLayer/MainMenu/BtnFeedback
+@onready var chromatic_overlay: CanvasItem = $ScreenJuiceLayer/ChromaticOverlay
 var _run_started: bool = false
 var _debug_label: Label = null
 var _debug_overlay_enabled: bool = true
@@ -35,6 +36,9 @@ func _ready() -> void:
 	_load_build_label()
 	if lbl_build:
 		lbl_build.visible = false
+	if chromatic_overlay != null:
+		chromatic_overlay.visible = false
+		chromatic_overlay.process_mode = Node.PROCESS_MODE_DISABLED
 	_ensure_debug_overlay()
 	set_process(true)
 
@@ -67,7 +71,9 @@ func _input(event: InputEvent) -> void:
 			return
 	if _is_tap_event(event):
 		_start_run()
-		get_viewport().set_input_as_handled()
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
 
 
 func _is_tap_event(event: InputEvent) -> bool:

@@ -16,13 +16,15 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 @export var min_anchor_center_gap: float = 250.0
 @export var cull_behind_distance: float = 1100.0
 @export var max_anchors_alive: int = 12
+@export var vertical_spawn_step: float = 360.0
+@export var force_spawn_jump_factor: float = 0.82
 
 var _player = null
 var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
 ## Match web (Netlify): climb is “up” on screen — forward is -Y, not +X.
 var _forward_hint: Vector2 = Vector2.UP
 var _spawn_cooldown_sec: float = 0.0
-var _spawn_accum_sec: float = 0.0
+var _highest_player_y: float = 0.0
 
 
 func setup(player) -> void:
@@ -31,20 +33,20 @@ func setup(player) -> void:
 	_forward_hint = Vector2.UP
 	var first = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
+	_highest_player_y = first.global_position.y
 	# Prewarm chain so upcoming circles exist before the player starts moving.
 	for _i in range(min_anchors_ahead):
 		_queue_spawn_ahead()
-	_spawn_accum_sec = 0.0
+	_ensure_vertical_chain()
 
 
 func _process(delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	_spawn_cooldown_sec = maxf(_spawn_cooldown_sec - delta, 0.0)
-	_spawn_accum_sec += delta
-	while _spawn_accum_sec >= spawn_interval_sec:
-		_spawn_accum_sec -= spawn_interval_sec
-		_try_spawn_ahead()
+	_highest_player_y = minf(_highest_player_y, _player.global_position.y)
+	_ensure_vertical_chain()
+	_try_spawn_ahead()
 	_cull_distant()
 
 
@@ -97,9 +99,28 @@ func _queue_spawn_ahead() -> void:
 func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 	if randf() > lux_spawn_chance:
 		return
-	var t: float = randf_range(0.22, 0.78)
-	var pos: Vector2 = from.lerp(to, t)
-	pos += Vector2(randf_range(-72.0, 72.0), randf_range(-56.0, 56.0))
+	var jump_vel := Vector2.UP * _estimate_jump_distance()
+	if _player != null and _player.has_method("get_launch_velocity_hint"):
+		jump_vel = _player.call("get_launch_velocity_hint")
+	var g := 1080.0
+	if _player != null:
+		var maybe_g = _player.get("dash_gravity")
+		if maybe_g != null:
+			g = float(maybe_g)
+	var travel_time := clampf(from.distance_to(to) / maxf(220.0, jump_vel.length()), 0.28, 0.95)
+	var t := randf_range(0.32, 0.68) * travel_time
+	var pos := from + jump_vel * t + Vector2(0.0, 0.5 * g * t * t)
+	pos.x = clampf(pos.x, minf(from.x, to.x) - 90.0, maxf(from.x, to.x) + 90.0)
+	pos.y = minf(pos.y, maxf(from.y, to.y) - 28.0)
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as Node2D
+		if a == null:
+			continue
+		var capture_r := 64.0
+		if "capture_radius" in a:
+			capture_r = float(a.capture_radius)
+		if pos.distance_to(a.global_position) < capture_r + 26.0:
+			return
 	var lux = LUX_SCENE.instantiate()
 	lux.global_position = pos
 	add_child(lux)
@@ -108,6 +129,9 @@ func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 func _try_spawn_ahead() -> void:
 	var anchors = get_tree().get_nodes_in_group("anchors")
 	if anchors.size() >= max_anchors_alive:
+		return
+	if not _has_anchor_in_jump_range():
+		_force_spawn_on_path()
 		return
 	var above_player := 0
 	for n in anchors:
@@ -145,6 +169,42 @@ func _try_spawn_ahead() -> void:
 	if need_more:
 		_queue_spawn_ahead()
 		_spawn_cooldown_sec = 0.3
+
+
+func _ensure_vertical_chain() -> void:
+	if _player == null:
+		return
+	var guard := 0
+	while _last_spawn_anchor_pos.y > _highest_player_y - vertical_spawn_step and guard < 5:
+		_queue_spawn_ahead()
+		guard += 1
+
+
+func _has_anchor_in_jump_range() -> bool:
+	if _player == null:
+		return true
+	var jump_distance := _estimate_jump_distance()
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as Node2D
+		if a == null:
+			continue
+		if a.global_position.y >= _player.global_position.y - 2.0:
+			continue
+		if a.global_position.distance_to(_player.global_position) <= jump_distance:
+			return true
+	return false
+
+
+func _force_spawn_on_path() -> void:
+	if _player == null:
+		return
+	var jump_distance := _estimate_jump_distance()
+	var target := _player.global_position + Vector2.UP * maxf(220.0, jump_distance * force_spawn_jump_factor)
+	target.x = lerpf(_player.global_position.x, _last_spawn_anchor_pos.x, 0.25)
+	var from := _last_spawn_anchor_pos
+	var a = spawn_anchor_at(target)
+	_maybe_spawn_lux_between(from, a.global_position)
+	_last_spawn_anchor_pos = a.global_position
 
 
 func _cull_distant() -> void:

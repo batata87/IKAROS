@@ -10,6 +10,7 @@ const CENTRIFUGAL_MULT_PER_REV: float = 0.25
 const MAX_LAUNCH_MULT: float = 3.0
 
 @export var dash_speed: float = 715.0
+@export var dash_gravity: float = 1080.0
 @export var max_offworld: float = 5200.0
 @export var ghost_length: float = 220.0
 @export var jump_arc_sec: float = 0.56
@@ -44,6 +45,7 @@ var _ignore_capture_anchor: NeonAnchor = null
 var _input_lock_until_msec: int = 0
 var _dash_time_sec: float = 0.0
 var _stuck_time_sec: float = 0.0
+var _last_launch_velocity: Vector2 = Vector2.UP * 715.0
 
 
 func _ready() -> void:
@@ -105,6 +107,14 @@ func get_jump_distance_hint() -> float:
 	elif GameManager.state == GameManager.GameState.DASHING:
 		speed = maxf(speed, velocity.length())
 	return speed * jump_arc_sec
+
+
+func get_launch_velocity_hint() -> Vector2:
+	if GameManager.state == GameManager.GameState.DASHING and velocity.length_squared() > 1.0:
+		return velocity
+	if _last_launch_velocity.length_squared() > 1.0:
+		return _last_launch_velocity
+	return Vector2.UP * dash_speed
 
 
 func _centrifugal_charge_t() -> float:
@@ -178,6 +188,10 @@ func _physics_process(delta: float) -> void:
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
+	_enforce_viewport_bounce()
+	if _anchor == null and GameManager.state == GameManager.GameState.DASHING and velocity.length() < 5.0:
+		die()
+		return
 	queue_redraw()
 
 
@@ -188,7 +202,7 @@ func _poll_mobile_pointer_tap() -> void:
 		_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 		return
 	var pointer_down := (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
-	if pointer_down and not _pointer_was_down:
+	if (not pointer_down) and _pointer_was_down:
 		var now := Time.get_ticks_msec()
 		if now - _last_tap_msec >= 80:
 			_last_tap_msec = now
@@ -372,16 +386,17 @@ func _centrifugal_launch_mult() -> float:
 func _release_dash() -> void:
 	if _anchor == null:
 		return
-	_anchor.set_active_orbit_anchor(false)
-	_ignore_capture_anchor = _anchor
-	var t_orbit := GameManager.get_time_in_current_orbit()
-	GameManager.on_dash_started(t_orbit)
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	if tangent.y >= -0.01:
 		# Up-only rule: ignore release while tangent points downward.
 		return
+	_anchor.set_active_orbit_anchor(false)
+	_ignore_capture_anchor = _anchor
+	var t_orbit := GameManager.get_time_in_current_orbit()
+	GameManager.on_dash_started(t_orbit)
 	var mult := _centrifugal_launch_mult()
 	velocity = tangent * dash_speed * mult
+	_last_launch_velocity = velocity
 	_reset_centrifugal()
 	_anchor = null
 	_dash_time_sec = 0.0
@@ -438,6 +453,7 @@ func _spawn_coyote_fx() -> void:
 func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
+	velocity.y += dash_gravity * delta
 	var col := move_and_collide(velocity * delta)
 	if col:
 		GameManager.trigger_fail()
@@ -445,20 +461,62 @@ func _physics_dash(delta: float) -> void:
 	if _dash_time_sec > 3.2:
 		GameManager.trigger_fail()
 		return
-	if velocity.y >= 0.0:
-		GameManager.trigger_fail()
+	if velocity.length() < 5.0 and _anchor == null:
+		die()
 		return
-	if velocity.length() < 6.0:
-		_stuck_time_sec += delta
-		if _stuck_time_sec > 0.5:
-			GameManager.trigger_fail()
-			return
-	else:
-		_stuck_time_sec = 0.0
 	if global_position.length() > max_offworld:
 		GameManager.trigger_fail()
 		return
 	_try_capture_anchor()
+
+
+func die() -> void:
+	GameManager.trigger_fail()
+
+
+func _safe_play_bounds() -> Rect2:
+	var vp := get_viewport()
+	var screen_rect := vp.get_visible_rect()
+	var safe := DisplayServer.get_display_safe_area()
+	if safe.size.x <= 0.0 or safe.size.y <= 0.0:
+		safe = screen_rect
+	var left_px := maxf(0.0, safe.position.x - screen_rect.position.x)
+	var top_px := maxf(0.0, safe.position.y - screen_rect.position.y)
+	var right_px := maxf(0.0, (screen_rect.position.x + screen_rect.size.x) - (safe.position.x + safe.size.x))
+	var bottom_px := maxf(0.0, (screen_rect.position.y + screen_rect.size.y) - (safe.position.y + safe.size.y))
+	var screen_top_left_world := _screen_to_world(Vector2(left_px, top_px))
+	var screen_top_right_world := _screen_to_world(Vector2(screen_rect.size.x - right_px, top_px))
+	var screen_bottom_left_world := _screen_to_world(Vector2(left_px, screen_rect.size.y - bottom_px))
+	return Rect2(
+		screen_top_left_world,
+		Vector2(screen_top_right_world.x - screen_top_left_world.x, screen_bottom_left_world.y - screen_top_left_world.y)
+	)
+
+
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	return get_viewport().get_canvas_transform().affine_inverse() * screen_pos
+
+
+func _enforce_viewport_bounce() -> void:
+	if GameManager.state != GameManager.GameState.DASHING:
+		return
+	var bounds := _safe_play_bounds()
+	var p := global_position
+	var bounced := false
+	if p.x <= bounds.position.x:
+		p.x = bounds.position.x
+		velocity = velocity.bounce(Vector2.RIGHT) * 0.8
+		bounced = true
+	elif p.x >= bounds.position.x + bounds.size.x:
+		p.x = bounds.position.x + bounds.size.x
+		velocity = velocity.bounce(Vector2.LEFT) * 0.8
+		bounced = true
+	if p.y <= bounds.position.y:
+		p.y = bounds.position.y
+		velocity = velocity.bounce(Vector2.DOWN) * 0.8
+		bounced = true
+	if bounced:
+		global_position = p
 
 
 func _try_capture_anchor() -> void:

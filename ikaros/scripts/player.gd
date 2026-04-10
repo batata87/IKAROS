@@ -807,11 +807,14 @@ func _update_screen_safe_container() -> void:
 	var right_shape := (_right_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var floor_shape := (_kill_floor.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	if left_shape != null:
-		left_shape.plane = Plane(Vector3(1.0, 0.0, 0.0), left_w)
+		left_shape.normal = Vector2.RIGHT
+		left_shape.distance = left_w
 	if right_shape != null:
-		right_shape.plane = Plane(Vector3(-1.0, 0.0, 0.0), -right_w)
+		right_shape.normal = Vector2.LEFT
+		right_shape.distance = -right_w
 	if floor_shape != null:
-		floor_shape.plane = Plane(Vector3(0.0, -1.0, 0.0), -floor_y)
+		floor_shape.normal = Vector2.UP
+		floor_shape.distance = -floor_y
 
 
 func _handle_air_collision(col: KinematicCollision2D) -> bool:

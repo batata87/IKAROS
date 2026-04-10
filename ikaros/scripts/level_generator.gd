@@ -27,6 +27,7 @@ var _spawn_cooldown_sec: float = 0.0
 var _highest_player_y: float = 0.0
 var _circles_since_lux: int = 0
 var _lux_spawned_in_window: int = 0
+var _last_spawn_player_y: float = 0.0
 
 
 func setup(player) -> void:
@@ -36,6 +37,7 @@ func setup(player) -> void:
 	var first = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
 	_highest_player_y = first.global_position.y
+	_last_spawn_player_y = first.global_position.y
 	_circles_since_lux = 0
 	_lux_spawned_in_window = 0
 	# Prewarm chain so upcoming circles exist before the player starts moving.
@@ -50,7 +52,10 @@ func _process(delta: float) -> void:
 	_spawn_cooldown_sec = maxf(_spawn_cooldown_sec - delta, 0.0)
 	_highest_player_y = minf(_highest_player_y, _player.global_position.y)
 	_ensure_vertical_chain()
-	_try_spawn_ahead()
+	if _player.global_position.y <= _last_spawn_player_y - (vertical_spawn_step * 0.55):
+		_try_spawn_ahead()
+		_last_spawn_player_y = _player.global_position.y
+	_ensure_reachable_ahead_min()
 	_ensure_lux_presence()
 	_cull_distant()
 
@@ -104,19 +109,14 @@ func _queue_spawn_ahead() -> void:
 func _maybe_spawn_lux_between(from: Vector2, to: Vector2, force_spawn: bool = false) -> bool:
 	if not force_spawn and randf() > lux_spawn_chance:
 		return false
-	var jump_vel: Vector2 = Vector2.UP * _estimate_jump_distance()
-	if _player != null and _player.has_method("get_launch_velocity_hint"):
-		jump_vel = _player.call("get_launch_velocity_hint") as Vector2
-	var g: float = 1080.0
-	if _player != null:
-		var maybe_g = _player.get("dash_gravity")
-		if maybe_g != null:
-			g = float(maybe_g)
-	var travel_time := clampf(from.distance_to(to) / maxf(220.0, jump_vel.length()), 0.28, 0.95)
-	var t := randf_range(0.32, 0.68) * travel_time
-	var pos: Vector2 = from + jump_vel * t + Vector2(0.0, 0.5 * g * t * t)
-	pos.x = clampf(pos.x, minf(from.x, to.x) - 90.0, maxf(from.x, to.x) + 90.0)
-	pos.y = minf(pos.y, maxf(from.y, to.y) - 28.0)
+	var dir: Vector2 = to - from
+	if dir.length_squared() < 0.001:
+		return false
+	var mid: Vector2 = (from + to) * 0.5
+	var perp: Vector2 = Vector2(-dir.y, dir.x).normalized()
+	var side_offset: float = randf_range(-50.0, 50.0)
+	var pos: Vector2 = mid + perp * side_offset
+	pos.y = minf(pos.y, maxf(from.y, to.y) - 18.0)
 	for n in get_tree().get_nodes_in_group("anchors"):
 		var a := n as Node2D
 		if a == null:
@@ -126,7 +126,12 @@ func _maybe_spawn_lux_between(from: Vector2, to: Vector2, force_spawn: bool = fa
 		if maybe_capture != null:
 			capture_r = float(maybe_capture)
 		if pos.distance_to(a.global_position) < capture_r + 26.0:
-			return false
+			var away_dir: Vector2 = (pos - a.global_position).normalized()
+			if away_dir.length_squared() < 0.001:
+				away_dir = perp
+			pos = a.global_position + away_dir * (capture_r + 58.0)
+			if pos.distance_to(a.global_position) < capture_r + 50.0:
+				return false
 	var lux = LUX_SCENE.instantiate()
 	lux.global_position = pos
 	add_child(lux)
@@ -185,6 +190,31 @@ func _ensure_vertical_chain() -> void:
 	while _last_spawn_anchor_pos.y > _highest_player_y - vertical_spawn_step and guard < 5:
 		_queue_spawn_ahead()
 		guard += 1
+
+
+func _ensure_reachable_ahead_min() -> void:
+	if _player == null:
+		return
+	var guard := 0
+	while _count_reachable_ahead() < 3 and guard < 6:
+		_force_spawn_on_path()
+		guard += 1
+
+
+func _count_reachable_ahead() -> int:
+	if _player == null:
+		return 0
+	var jump_distance := _estimate_jump_distance()
+	var count := 0
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as Node2D
+		if a == null:
+			continue
+		if a.global_position.y >= _player.global_position.y - 2.0:
+			continue
+		if a.global_position.distance_to(_player.global_position) <= jump_distance * 1.18:
+			count += 1
+	return count
 
 
 func _has_anchor_in_jump_range() -> bool:

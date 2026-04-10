@@ -49,6 +49,8 @@ var _last_launch_velocity: Vector2 = Vector2.UP * 715.0
 var _capture_blend_from: Vector2 = Vector2.ZERO
 var _capture_blend_t: float = 1.0
 var _timer_fail_lock: bool = false
+var _capture_tween: Tween
+var _capture_tween_active: bool = false
 
 
 func _ready() -> void:
@@ -165,6 +167,7 @@ func initialize_after_level() -> void:
 	_stuck_time_sec = 0.0
 	_timer_fail_lock = false
 	_capture_blend_t = 1.0
+	_capture_tween_active = false
 	_attach_to_initial_anchor()
 
 
@@ -200,6 +203,8 @@ func _physics_process(delta: float) -> void:
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
+	if _anchor == null and velocity.length() < 10.0:
+		apply_emergency_gravity(delta)
 	_enforce_viewport_bounce()
 	if _anchor == null and (GameManager.state == GameManager.GameState.DASHING or GameManager.state == GameManager.GameState.FALLING) and velocity.length() < 5.0:
 		die()
@@ -305,7 +310,10 @@ func _physics_orbit(delta: float) -> void:
 	_vib_phase += delta * (72.0 + 140.0 * ct)
 	_orbit_angle += _anchor.rotation_speed * delta
 	var target := _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
-	if _capture_blend_t < 1.0:
+	if _capture_tween_active:
+		# Tween drives position during capture smoothing.
+		pass
+	elif _capture_blend_t < 1.0:
 		_capture_blend_t = minf(1.0, _capture_blend_t + delta / 0.1)
 		global_position = _capture_blend_from.lerp(target, _capture_blend_t)
 	else:
@@ -514,6 +522,12 @@ func _physics_fall(delta: float) -> void:
 	_try_capture_anchor()
 
 
+func apply_emergency_gravity(delta: float) -> void:
+	if GameManager.state != GameManager.GameState.FALLING and GameManager.state != GameManager.GameState.DASHING:
+		GameManager.set_game_state(GameManager.GameState.FALLING)
+	velocity.y += dash_gravity * 1.15 * delta
+
+
 func die() -> void:
 	GameManager.trigger_fail()
 
@@ -549,12 +563,15 @@ func _enforce_viewport_bounce() -> void:
 	var moved := false
 	if p.x <= bounds.position.x:
 		p.x = bounds.position.x
-		velocity.x = -velocity.x * 0.7
+		velocity.x = -velocity.x * 0.8
 		moved = true
 	elif p.x >= bounds.position.x + bounds.size.x:
 		p.x = bounds.position.x + bounds.size.x
-		velocity.x = -velocity.x * 0.7
+		velocity.x = -velocity.x * 0.8
 		moved = true
+	if p.y > bounds.position.y + bounds.size.y:
+		die()
+		return
 	if p.y <= bounds.position.y:
 		p.y = bounds.position.y
 		velocity = velocity.bounce(Vector2.DOWN) * 0.8
@@ -607,7 +624,15 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	_orbit_angle = (global_position - a.global_position).angle()
 	_capture_blend_from = global_position
 	_capture_blend_t = 0.0
-	global_position = _capture_blend_from
+	if _capture_tween and _capture_tween.is_valid():
+		_capture_tween.kill()
+	var target_pos := a.global_position + Vector2(a.orbit_radius, 0.0).rotated(_orbit_angle)
+	_capture_tween_active = true
+	_capture_tween = create_tween()
+	_capture_tween.tween_property(self, "global_position", target_pos, 0.1)
+	_capture_tween.finished.connect(func() -> void:
+		_capture_tween_active = false
+	)
 	GameManager.on_anchor_captured(1)
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 	_dash_time_sec = 0.0

@@ -17,6 +17,8 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var zoom_tight: float = 0.92
 @export var zoom_wide: float = 0.68
 @export var zoom_speed_ref: float = 920.0
+@export var launch_power: float = 760.0
+@export var max_air_speed: float = 980.0
 
 var _anchor: NeonAnchor = null
 var _orbit_angle: float = 0.0
@@ -51,11 +53,6 @@ var _capture_blend_t: float = 1.0
 var _timer_fail_lock: bool = false
 var _capture_tween: Tween
 var _capture_tween_active: bool = false
-var _guide_active: bool = false
-var _guide_elapsed: float = 0.0
-var _guide_duration: float = 0.0
-var _guide_start: Vector2 = Vector2.ZERO
-var _guide_point: Vector2 = Vector2.ZERO
 var _air_still_sec: float = 0.0
 
 
@@ -174,7 +171,6 @@ func initialize_after_level() -> void:
 	_timer_fail_lock = false
 	_capture_blend_t = 1.0
 	_capture_tween_active = false
-	_guide_active = false
 	_air_still_sec = 0.0
 	_attach_to_initial_anchor()
 
@@ -442,7 +438,6 @@ func _release_dash() -> void:
 	_coyote_used = false
 	_coyote_armed = velocity.y > 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
-	_start_magnetic_guide(target)
 	if trail_particles:
 		trail_particles.restart()
 		trail_particles.emitting = true
@@ -493,16 +488,9 @@ func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
 	velocity.y += dash_gravity * delta
-	var col = null
-	if _guide_active:
-		_guide_elapsed += delta
-		var gt := clampf(_guide_elapsed / maxf(_guide_duration, 0.001), 0.0, 1.0)
-		var guided_target := _guide_start.lerp(_guide_point, gt)
-		col = move_and_collide(guided_target - global_position)
-		if gt >= 1.0:
-			_guide_active = false
-	else:
-		col = move_and_collide(velocity * delta)
+	_apply_subtle_magnet(delta)
+	_cap_air_velocity()
+	var col = move_and_collide(velocity * delta)
 	if col:
 		GameManager.trigger_fail()
 		return
@@ -517,6 +505,8 @@ func _physics_dash(delta: float) -> void:
 
 func _physics_fall(delta: float) -> void:
 	velocity.y += dash_gravity * delta
+	_apply_subtle_magnet(delta)
+	_cap_air_velocity()
 	var col := move_and_collide(velocity * delta)
 	if col:
 		die()
@@ -597,25 +587,11 @@ func _pick_next_target_anchor() -> NeonAnchor:
 func _solve_launch_velocity(target: NeonAnchor) -> Vector2:
 	if target == null:
 		var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
-		return tangent * dash_speed * _centrifugal_launch_mult()
-	var to := target.global_position
-	var t := maxf(0.35, jump_arc_sec)
-	var g_term := Vector2(0.0, 0.5 * dash_gravity * t * t)
-	var v := (to - global_position - g_term) / t
-	var max_speed := dash_speed * _centrifugal_launch_mult() * 1.18
-	if v.length() > max_speed:
-		v = v.normalized() * max_speed
-	return v
-
-
-func _start_magnetic_guide(target: NeonAnchor) -> void:
-	_guide_active = target != null
-	if not _guide_active:
-		return
-	_guide_elapsed = 0.0
-	_guide_duration = maxf(0.08, jump_arc_sec * 0.3)
-	_guide_start = global_position
-	_guide_point = _guide_start.lerp(target.global_position, 0.4)
+		return tangent * launch_power
+	var direction_vector := (target.global_position - global_position).normalized()
+	if direction_vector.length_squared() < 0.0001:
+		direction_vector = Vector2.UP
+	return direction_vector * launch_power
 
 
 func _update_air_still_fallback(delta: float) -> void:
@@ -628,6 +604,29 @@ func _update_air_still_fallback(delta: float) -> void:
 			apply_emergency_gravity(delta)
 	else:
 		_air_still_sec = 0.0
+
+
+func _apply_subtle_magnet(delta: float) -> void:
+	var best: NeonAnchor = null
+	var best_d := INF
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as NeonAnchor
+		if a == null or not is_instance_valid(a):
+			continue
+		if _ignore_capture_anchor != null and a == _ignore_capture_anchor:
+			continue
+		var d := global_position.distance_to(a.global_position)
+		if d < best_d:
+			best_d = d
+			best = a
+	if best != null and best_d <= 50.0:
+		var dir := (best.global_position - global_position).normalized()
+		velocity += dir * 220.0 * delta
+
+
+func _cap_air_velocity() -> void:
+	if velocity.length() > max_air_speed:
+		velocity = velocity.normalized() * max_air_speed
 
 
 func _try_capture_anchor() -> void:

@@ -7,7 +7,7 @@ const LUX_SCENE := preload("res://scenes/LuxPickup.tscn")
 
 @export var lux_spawn_chance: float = 0.42
 @export var min_anchors_ahead: int = 3
-@export var cull_behind_distance: float = 800.0
+@export var cull_behind_distance: float = 1000.0
 @export var max_anchors_alive: int = 16
 @export var vertical_step: float = 350.0
 
@@ -38,6 +38,8 @@ func spawn_anchor_at(global_pos: Vector2):
 	if a.has_method("apply_difficulty"):
 		a.call("apply_difficulty", GameManager.score)
 	add_child(a)
+	print("[spawn] circle at ", a.global_position)
+	cleanup_old_circles()
 	return a
 
 
@@ -53,12 +55,7 @@ func _spawn_next_track_anchor() -> void:
 
 
 func _cull_distant() -> void:
-	for child in get_children():
-		var c := child as Node2D
-		if c != null:
-			var far_below: bool = c.global_position.y > _player.global_position.y + cull_behind_distance
-			if far_below:
-				c.queue_free()
+	cleanup_old_circles()
 
 
 func update_forward_hint(_from: Vector2, _to: Vector2) -> void:
@@ -68,10 +65,8 @@ func update_forward_hint(_from: Vector2, _to: Vector2) -> void:
 func _ensure_track_ahead() -> void:
 	if _player == null:
 		return
-	var guard := 0
-	while _count_reachable_ahead() < min_anchors_ahead and guard < 8:
+	if _count_reachable_ahead() < min_anchors_ahead:
 		_spawn_next_track_anchor()
-		guard += 1
 
 
 func _count_reachable_ahead() -> int:
@@ -107,6 +102,18 @@ func _spawn_lux_midpoint(from: Vector2, to: Vector2) -> void:
 	var lux = LUX_SCENE.instantiate()
 	lux.global_position = pos
 	add_child(lux)
+
+
+func cleanup_old_circles() -> void:
+	if _player == null:
+		return
+	for child in get_children():
+		var c := child as Node2D
+		if c == null:
+			continue
+		if c.is_in_group("anchors") and c.global_position.y > _player.global_position.y + cull_behind_distance:
+			print("[cleanup] delete circle at ", c.global_position)
+			c.queue_free()
 
 
 func _screen_mid_x_world() -> float:

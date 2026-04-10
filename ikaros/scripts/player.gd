@@ -46,6 +46,9 @@ var _input_lock_until_msec: int = 0
 var _dash_time_sec: float = 0.0
 var _stuck_time_sec: float = 0.0
 var _last_launch_velocity: Vector2 = Vector2.UP * 715.0
+var _capture_blend_from: Vector2 = Vector2.ZERO
+var _capture_blend_t: float = 1.0
+var _timer_fail_lock: bool = false
 
 
 func _ready() -> void:
@@ -62,6 +65,9 @@ func _ready() -> void:
 	var c: Array = ItemDatabase.peek_equipped_theme()
 	_on_equipped_theme(c[0], c[1], c[2], c[3])
 	_configure_trail_performance()
+	if _cam != null:
+		_cam.position_smoothing_enabled = true
+		_cam.position_smoothing_speed = 5.0
 	queue_redraw()
 
 
@@ -157,6 +163,8 @@ func initialize_after_level() -> void:
 	_pointer_was_down = (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 	_dash_time_sec = 0.0
 	_stuck_time_sec = 0.0
+	_timer_fail_lock = false
+	_capture_blend_t = 1.0
 	_attach_to_initial_anchor()
 
 
@@ -181,6 +189,10 @@ func _physics_process(delta: float) -> void:
 			_physics_dash(delta)
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
+		GameManager.GameState.FALLING:
+			_physics_fall(delta)
+			if _charge_hum and _charge_hum.playing:
+				_charge_hum.stop()
 		_:
 			velocity = Vector2.ZERO
 			if _ghost_line:
@@ -189,7 +201,7 @@ func _physics_process(delta: float) -> void:
 				_charge_hum.stop()
 	_update_camera_zoom(delta)
 	_enforce_viewport_bounce()
-	if _anchor == null and GameManager.state == GameManager.GameState.DASHING and velocity.length() < 5.0:
+	if _anchor == null and (GameManager.state == GameManager.GameState.DASHING or GameManager.state == GameManager.GameState.FALLING) and velocity.length() < 5.0:
 		die()
 		return
 	queue_redraw()
@@ -261,7 +273,11 @@ func _on_tap() -> void:
 
 
 func _attach_to_initial_anchor() -> void:
-	var lg := get_parent().get_node_or_null("LevelGenerator") as NeonLevelGenerator
+	var parent := get_parent()
+	if parent == null:
+		push_warning("IKAROS: Player has no parent node.")
+		return
+	var lg := parent.get_node_or_null("LevelGenerator") as NeonLevelGenerator
 	if lg == null or lg.get_child_count() == 0:
 		push_warning("IKAROS: LevelGenerator has no anchors yet.")
 		return
@@ -288,7 +304,12 @@ func _physics_orbit(delta: float) -> void:
 	var ct := _centrifugal_charge_t()
 	_vib_phase += delta * (72.0 + 140.0 * ct)
 	_orbit_angle += _anchor.rotation_speed * delta
-	global_position = _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
+	var target := _anchor.global_position + Vector2(_anchor.orbit_radius, 0.0).rotated(_orbit_angle)
+	if _capture_blend_t < 1.0:
+		_capture_blend_t = minf(1.0, _capture_blend_t + delta / 0.1)
+		global_position = _capture_blend_from.lerp(target, _capture_blend_t)
+	else:
+		global_position = target
 	_update_active_anchor_reachability()
 	if trail_particles:
 		trail_particles.emitting = false
@@ -321,9 +342,17 @@ func _bind_anchor_events(a: NeonAnchor) -> void:
 
 
 func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
-	if _anchor == null or anchor != _anchor:
+	if _anchor == null or anchor != _anchor or _timer_fail_lock:
 		return
-	GameManager.trigger_fail()
+	_timer_fail_lock = true
+	var fall_v := velocity
+	_anchor = null
+	_ignore_capture_anchor = null
+	_capture_blend_t = 1.0
+	if absf(fall_v.y) < 30.0:
+		fall_v = Vector2(0.0, 380.0)
+	velocity = fall_v
+	GameManager.set_game_state(GameManager.GameState.FALLING)
 
 
 func _play_charge_blip() -> void:
@@ -470,6 +499,21 @@ func _physics_dash(delta: float) -> void:
 	_try_capture_anchor()
 
 
+func _physics_fall(delta: float) -> void:
+	velocity.y += dash_gravity * delta
+	var col := move_and_collide(velocity * delta)
+	if col:
+		die()
+		return
+	if velocity.length() < 5.0 and _anchor == null:
+		die()
+		return
+	if global_position.length() > max_offworld:
+		die()
+		return
+	_try_capture_anchor()
+
+
 func die() -> void:
 	GameManager.trigger_fail()
 
@@ -498,24 +542,24 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 
 func _enforce_viewport_bounce() -> void:
-	if GameManager.state != GameManager.GameState.DASHING:
+	if GameManager.state != GameManager.GameState.DASHING and GameManager.state != GameManager.GameState.FALLING:
 		return
 	var bounds := _safe_play_bounds()
 	var p := global_position
-	var bounced := false
+	var moved := false
 	if p.x <= bounds.position.x:
 		p.x = bounds.position.x
-		velocity = velocity.bounce(Vector2.RIGHT) * 0.8
-		bounced = true
+		velocity.x = -velocity.x * 0.7
+		moved = true
 	elif p.x >= bounds.position.x + bounds.size.x:
 		p.x = bounds.position.x + bounds.size.x
-		velocity = velocity.bounce(Vector2.LEFT) * 0.8
-		bounced = true
+		velocity.x = -velocity.x * 0.7
+		moved = true
 	if p.y <= bounds.position.y:
 		p.y = bounds.position.y
 		velocity = velocity.bounce(Vector2.DOWN) * 0.8
-		bounced = true
-	if bounced:
+		moved = true
+	if moved:
 		global_position = p
 
 
@@ -561,18 +605,25 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	_anchor.set_active_orbit_anchor(true)
 	_bind_anchor_events(_anchor)
 	_orbit_angle = (global_position - a.global_position).angle()
-	global_position = a.global_position + Vector2(a.orbit_radius, 0.0).rotated(_orbit_angle)
+	_capture_blend_from = global_position
+	_capture_blend_t = 0.0
+	global_position = _capture_blend_from
 	GameManager.on_anchor_captured(1)
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 	_dash_time_sec = 0.0
 	_stuck_time_sec = 0.0
+	_timer_fail_lock = false
 	_reset_centrifugal()
 	_coyote_armed = false
 	_coyote_used = false
 	a.play_capture_squash()
 	if trail_particles:
 		trail_particles.emitting = true
-	var lg := get_parent().get_node_or_null("LevelGenerator") as NeonLevelGenerator
+	var parent := get_parent()
+	if parent == null:
+		_spawn_score_pop(prev_pos, pts, combo_style)
+		return
+	var lg := parent.get_node_or_null("LevelGenerator") as NeonLevelGenerator
 	if lg:
 		lg.update_forward_hint(prev_pos, global_position)
 	_spawn_score_pop(prev_pos, pts, combo_style)

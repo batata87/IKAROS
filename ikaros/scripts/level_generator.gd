@@ -25,6 +25,8 @@ var _last_spawn_anchor_pos: Vector2 = Vector2.ZERO
 var _forward_hint: Vector2 = Vector2.UP
 var _spawn_cooldown_sec: float = 0.0
 var _highest_player_y: float = 0.0
+var _circles_since_lux: int = 0
+var _lux_spawned_in_window: int = 0
 
 
 func setup(player) -> void:
@@ -34,6 +36,8 @@ func setup(player) -> void:
 	var first = spawn_anchor_at(Vector2.ZERO)
 	_last_spawn_anchor_pos = first.global_position
 	_highest_player_y = first.global_position.y
+	_circles_since_lux = 0
+	_lux_spawned_in_window = 0
 	# Prewarm chain so upcoming circles exist before the player starts moving.
 	for _i in range(min_anchors_ahead):
 		_queue_spawn_ahead()
@@ -47,6 +51,7 @@ func _process(delta: float) -> void:
 	_highest_player_y = minf(_highest_player_y, _player.global_position.y)
 	_ensure_vertical_chain()
 	_try_spawn_ahead()
+	_ensure_lux_presence()
 	_cull_distant()
 
 
@@ -92,13 +97,13 @@ func _queue_spawn_ahead() -> void:
 		# Fallback still keeps climb moving upward even in dense fields.
 		target = _last_spawn_anchor_pos + Vector2.UP * min_step
 	spawn_anchor_at(target)
-	_maybe_spawn_lux_between(from, target)
+	_register_circle_and_lux(from, target)
 	_last_spawn_anchor_pos = target
 
 
-func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
-	if randf() > lux_spawn_chance:
-		return
+func _maybe_spawn_lux_between(from: Vector2, to: Vector2, force_spawn: bool = false) -> bool:
+	if not force_spawn and randf() > lux_spawn_chance:
+		return false
 	var jump_vel: Vector2 = Vector2.UP * _estimate_jump_distance()
 	if _player != null and _player.has_method("get_launch_velocity_hint"):
 		jump_vel = _player.call("get_launch_velocity_hint") as Vector2
@@ -121,10 +126,11 @@ func _maybe_spawn_lux_between(from: Vector2, to: Vector2) -> void:
 		if maybe_capture != null:
 			capture_r = float(maybe_capture)
 		if pos.distance_to(a.global_position) < capture_r + 26.0:
-			return
+			return false
 	var lux = LUX_SCENE.instantiate()
 	lux.global_position = pos
 	add_child(lux)
+	return true
 
 
 func _try_spawn_ahead() -> void:
@@ -204,8 +210,23 @@ func _force_spawn_on_path() -> void:
 	target.x = lerpf(_player.global_position.x, _last_spawn_anchor_pos.x, 0.25)
 	var from: Vector2 = _last_spawn_anchor_pos
 	var a = spawn_anchor_at(target)
-	_maybe_spawn_lux_between(from, a.global_position)
+	_register_circle_and_lux(from, a.global_position)
 	_last_spawn_anchor_pos = a.global_position
+
+
+func _register_circle_and_lux(from: Vector2, to: Vector2) -> void:
+	_circles_since_lux += 1
+	var must_spawn := false
+	if _circles_since_lux == 2 and _lux_spawned_in_window < 1:
+		must_spawn = true
+	if _circles_since_lux >= 3 and _lux_spawned_in_window < 2:
+		must_spawn = true
+	var spawned := _maybe_spawn_lux_between(from, to, must_spawn)
+	if spawned:
+		_lux_spawned_in_window += 1
+	if _circles_since_lux >= 3:
+		_circles_since_lux = 0
+		_lux_spawned_in_window = 0
 
 
 func _cull_distant() -> void:
@@ -239,3 +260,25 @@ func _target_anchors_alive_for_score() -> int:
 	if s < 30:
 		return 4
 	return target_anchors_alive
+
+
+func _ensure_lux_presence() -> void:
+	if _player == null:
+		return
+	for c in get_children():
+		if c is LuxPickup:
+			return
+	var pos := _player.global_position + Vector2(0.0, -200.0)
+	for n in get_tree().get_nodes_in_group("anchors"):
+		var a := n as Node2D
+		if a == null:
+			continue
+		var capture_r: float = 64.0
+		var maybe_capture = a.get("capture_radius")
+		if maybe_capture != null:
+			capture_r = float(maybe_capture)
+		if pos.distance_to(a.global_position) < capture_r + 30.0:
+			pos.x += capture_r + 42.0
+	var lux = LUX_SCENE.instantiate()
+	lux.global_position = pos
+	add_child(lux)

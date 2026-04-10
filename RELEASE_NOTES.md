@@ -53,3 +53,13 @@
 - UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
 - Fix welcome build label visibility, spawn progression, and up-only dash flow; bump b6.
 - Fix iPhone menu alignment and anchor spacing flow; bump build b5.
+## v0.0.1+b8
+- Date: 2026-04-10T08:36:07.559Z
+- Gameplay: anchor chain progression tuned to reduce early clutter and improve upward readability.
+- Gameplay: countdown timer fairness improved so active anchor timer no longer stalls at upper heights once started.
+- Gameplay: strictly upward movement enforcement (downward/backward dash paths now fail instead of drifting).
+- Gameplay: anti-stuck/endless-flight safeguards tightened for dash and timeout states.
+- Camera: upward lead offset added to keep upcoming circles visible near top of screen.
+- UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
+- Fix Godot parse robustness in level generator.
+- Overhaul mobile flow-state core loop for IKAROS.

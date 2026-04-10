@@ -6,6 +6,7 @@ enum GameState {
 	IDLE,
 	ORBITING,
 	DASHING,
+	FALLING,
 	GAMEOVER,
 }
 

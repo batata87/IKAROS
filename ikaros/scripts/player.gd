@@ -17,6 +17,7 @@ var _kill_floor: StaticBody2D
 var _left_rail: Line2D
 var _right_rail: Line2D
 var _last_fail_reason: String = ""
+var _camera_world_y: float = 0.0
 
 @onready var _cam: Camera2D = $Camera2D
 @onready var _ghost_line: Line2D = $GhostLine
@@ -40,11 +41,13 @@ func _ready() -> void:
 	var c := ItemDatabase.peek_equipped_theme()
 	_on_equipped_theme(c[0], c[1], c[2], c[3])
 	queue_redraw()
+	_camera_world_y = global_position.y
 
 
 func initialize_after_level() -> void:
 	GameManager.reset_run()
 	_last_fail_reason = ""
+	_camera_world_y = global_position.y
 	_attach_to_first_anchor()
 
 
@@ -142,6 +145,11 @@ func _launch_from_anchor() -> void:
 		return
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	var launch_dir := tangent.rotated(-PI * 0.25).normalized()
+	# Keep launches forward/upward to avoid dead runs that dump below play space.
+	launch_dir = (launch_dir + Vector2(0.0, -0.45)).normalized()
+	if launch_dir.y > -0.12:
+		launch_dir.y = -0.12
+		launch_dir = launch_dir.normalized()
 	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
 	_anchor = null
@@ -306,8 +314,9 @@ func _update_boundaries_and_rails() -> void:
 func _update_camera_lock() -> void:
 	if _cam == null:
 		return
-	# Camera moves upward with gameplay; no horizontal drift.
-	_cam.position = Vector2(-global_position.x, 0.0)
+	# Lock horizontal drift and only move camera upward in world space.
+	_camera_world_y = minf(_camera_world_y, global_position.y)
+	_cam.position = Vector2(-global_position.x, _camera_world_y - global_position.y)
 
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:

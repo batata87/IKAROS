@@ -32,7 +32,11 @@ const metrics = {
   stepsExecuted: 0,
   uncaughtPageErrors: 0,
   consoleErrors: 0,
+  blackFrameSamples: 0,
+  frozenFrameStreak: 0,
 };
+
+let maxFrozenFrameStreak = 0;
 
 function addDefect(severity, title, details) {
   defects.push({
@@ -131,6 +135,7 @@ async function run() {
 
     const startTime = Date.now();
     const keyPool = ['Space', 'ArrowUp', 'ArrowLeft', 'ArrowRight'];
+    let previousFrameSignature = null;
 
     for (let i = 0; i < QA_STEPS; i += 1) {
       if (Date.now() - startTime > QA_DURATION_MS) {
@@ -146,6 +151,54 @@ async function run() {
       await page.mouse.click(x, y, { delay: 30 });
       await page.keyboard.press(key);
       await page.waitForTimeout(350);
+
+      const frameProbe = await page.evaluate(() => {
+        const canvas = document.querySelector('canvas');
+        if (!canvas) {
+          return { ok: false, reason: 'no-canvas' };
+        }
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) {
+          return { ok: false, reason: 'no-context' };
+        }
+        const w = canvas.width;
+        const h = canvas.height;
+        if (w < 4 || h < 4) {
+          return { ok: false, reason: 'canvas-too-small' };
+        }
+        const sampleW = Math.min(160, w);
+        const sampleH = Math.min(90, h);
+        const image = ctx.getImageData(0, 0, sampleW, sampleH).data;
+        let luminanceSum = 0;
+        let signature = 0;
+        let pixelCount = 0;
+        for (let p = 0; p < image.length; p += 16) {
+          const r = image[p];
+          const g = image[p + 1];
+          const b = image[p + 2];
+          luminanceSum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          signature = (signature + r * 3 + g * 5 + b * 7 + pixelCount) % 1000000007;
+          pixelCount += 1;
+        }
+        return {
+          ok: true,
+          avgLuminance: pixelCount === 0 ? 0 : luminanceSum / pixelCount,
+          signature,
+        };
+      });
+
+      if (frameProbe.ok) {
+        if (frameProbe.avgLuminance < 7) {
+          metrics.blackFrameSamples += 1;
+        }
+        if (previousFrameSignature !== null && previousFrameSignature === frameProbe.signature) {
+          metrics.frozenFrameStreak += 1;
+          maxFrozenFrameStreak = Math.max(maxFrozenFrameStreak, metrics.frozenFrameStreak);
+        } else {
+          metrics.frozenFrameStreak = 0;
+        }
+        previousFrameSignature = frameProbe.signature;
+      }
 
       metrics.stepsExecuted += 1;
     }
@@ -174,6 +227,22 @@ async function run() {
         'p2',
         'Console errors observed',
         `Detected ${metrics.consoleErrors} console error messages during simulation.`
+      );
+    }
+
+    if (metrics.blackFrameSamples >= Math.max(5, Math.floor(metrics.stepsExecuted * 0.5))) {
+      addDefect(
+        'p0',
+        'Mostly black gameplay frames detected',
+        `Detected ${metrics.blackFrameSamples} very-dark frame samples during active simulation.`
+      );
+    }
+
+    if (maxFrozenFrameStreak >= 8) {
+      addDefect(
+        'p0',
+        'Possible frozen gameplay loop',
+        `Frame signature stayed unchanged for ${maxFrozenFrameStreak} consecutive probes.`
       );
     }
 

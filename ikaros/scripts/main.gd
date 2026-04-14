@@ -7,6 +7,7 @@ static var _auto_start_after_reload: bool = false
 @onready var lbl_hi: Label = $CanvasLayer/HUD/HighScore
 @onready var lbl_mul: Label = $CanvasLayer/HUD/Multiplier
 @onready var lbl_lux: Label = $CanvasLayer/HUD/LuxBalance
+@onready var lbl_score: Label = $CanvasLayer/HUD/Score
 @onready var lbl_build: Label = $CanvasLayer/HUD/BuildInfo
 @onready var main_menu: Control = $CanvasLayer/MainMenu
 @onready var store_screen = $CanvasLayer/StoreScreen
@@ -177,6 +178,7 @@ func _on_multiplier_changed(_v: float) -> void:
 
 
 func _refresh_hud() -> void:
+	lbl_score.text = "Score: %d" % GameManager.score
 	lbl_hi.text = "HI: %d" % GameManager.high_score
 	lbl_mul.text = "x%.1f" % GameManager.multiplier
 

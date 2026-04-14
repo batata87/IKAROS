@@ -1008,7 +1008,8 @@ func _update_screen_safe_container() -> void:
 	var rect := get_viewport().get_visible_rect()
 	var left_w := _screen_to_world(Vector2(0.0, rect.size.y * 0.5)).x
 	var right_w := _screen_to_world(Vector2(rect.size.x, rect.size.y * 0.5)).x
-	var floor_y := _screen_to_world(Vector2(rect.size.x * 0.5, rect.size.y)).y + 140.0
+	var cam_y := _cam.get_screen_center_position().y if _cam != null else global_position.y
+	var floor_y := cam_y + 600.0
 	var left_shape := (_left_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var right_shape := (_right_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var floor_shape := (_kill_floor.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D

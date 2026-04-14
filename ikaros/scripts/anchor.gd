@@ -23,6 +23,7 @@ var _target_reachable: bool = false
 var _countdown_started: bool = false
 var _remaining_sec: float = 4.6
 var _danger_t: float = 0.0
+var _expiring: bool = false
 
 
 func _ready() -> void:
@@ -54,6 +55,8 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
+	if _expiring:
+		return
 	if not shrink_enabled or not _active_orbit_anchor:
 		return
 	if not _countdown_started and not _target_reachable:
@@ -73,7 +76,7 @@ func _process(delta: float) -> void:
 		return
 	_stop_danger_tween()
 	countdown_finished.emit(self)
-	queue_free()
+	_expire_with_pop()
 
 
 func _stop_danger_tween() -> void:
@@ -131,3 +134,18 @@ func set_active_orbit_anchor(active: bool) -> void:
 
 func set_target_reachable(reachable: bool) -> void:
 	_target_reachable = reachable
+
+
+func _expire_with_pop() -> void:
+	if _expiring:
+		return
+	_expiring = true
+	rotation_speed = 0.0
+	set_process(false)
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector2(1.18, 0.82), 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(self, "modulate:a", 0.0, 0.07)
+	tw.tween_property(self, "scale", Vector2(0.02, 0.02), 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.finished.connect(func() -> void:
+		queue_free()
+	)

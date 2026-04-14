@@ -60,6 +60,16 @@ var _last_fail_reason: String = ""
 var _left_wall: StaticBody2D = null
 var _right_wall: StaticBody2D = null
 var _kill_floor: StaticBody2D = null
+var _neon_trail: Line2D = null
+var _trail_hist: PackedVector2Array = PackedVector2Array()
+var _left_wall_guide: Line2D = null
+var _right_wall_guide: Line2D = null
+var _shake_tween: Tween
+var _squish_tween: Tween
+var _prediction_line: Line2D = null
+var _cam_base_offset: Vector2 = Vector2.ZERO
+var _cam_shake: Vector2 = Vector2.ZERO
+var _squish_scale: Vector2 = Vector2.ONE
 
 
 func _ready() -> void:
@@ -68,6 +78,9 @@ func _ready() -> void:
 	collision_mask = 0
 	_ghost_line = get_node_or_null("GhostLine") as Line2D
 	_setup_screen_safe_container()
+	_setup_neon_trail()
+	_setup_prediction_line()
+	_setup_wall_guides()
 	_setup_ghost_line_style()
 	if _charge_hum and _charge_hum.stream == null:
 		var g := AudioStreamGenerator.new()
@@ -81,9 +94,11 @@ func _ready() -> void:
 	if _cam != null:
 		_cam.position_smoothing_enabled = false
 		_cam.position_smoothing_speed = 5.0
+		_cam_base_offset = _cam.offset
 	if trail_particles != null:
-		trail_particles.z_index = -5
-		trail_particles.amount = mini(trail_particles.amount, 16)
+		trail_particles.z_index = -6
+		trail_particles.amount = mini(trail_particles.amount, 28)
+		trail_particles.lifetime = 0.45
 	queue_redraw()
 
 
@@ -93,6 +108,14 @@ func _on_equipped_theme(pf: Color, pr: Color, _ar: Color, _ac: Color) -> void:
 	if trail_particles and trail_particles.process_material is ParticleProcessMaterial:
 		var pm := trail_particles.process_material as ParticleProcessMaterial
 		pm.color = Color(pr.r, pr.g, pr.b, 0.55)
+	if _neon_trail != null:
+		var g := _neon_trail.gradient
+		if g != null and g.get_point_count() >= 3:
+			g.set_color(0, Color(pr.r, pr.g, pr.b, 0.0))
+			g.set_color(1, Color(pr.r, pr.g, pr.b, 0.38))
+			g.set_color(2, Color(minf(1.0, pr.r + 0.35), pr.g, pr.b, 0.92))
+	if _prediction_line != null:
+		_prediction_line.default_color = Color(pr.r, pr.g, pr.b, 0.38)
 	queue_redraw()
 
 
@@ -163,8 +186,10 @@ func _draw() -> void:
 	var oy: float = cos(_vib_phase * 1.13) * amp + cos(_vib_phase * 1.9) * amp * 0.28
 	var r0: float = 14.0 * _draw_visual_scale()
 	var off := Vector2(ox, oy)
-	draw_circle(off, r0, _fill_color)
-	draw_arc(off, r0, 0.0, TAU, 48, _ring_color, 2.0, true)
+	draw_set_transform(off, 0.0, _squish_scale)
+	draw_circle(Vector2.ZERO, r0, _fill_color)
+	draw_arc(Vector2.ZERO, r0, 0.0, TAU, 48, _ring_color, 2.0, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func initialize_after_level() -> void:
@@ -186,6 +211,9 @@ func initialize_after_level() -> void:
 	_launch_count = 0
 	_capture_count = 0
 	_last_fail_reason = ""
+	_clear_neon_trail()
+	if _prediction_line:
+		_prediction_line.clear_points()
 	_attach_to_initial_anchor()
 
 
@@ -194,6 +222,9 @@ func _physics_process(delta: float) -> void:
 	_poll_mobile_pointer_tap()
 	if GameManager.state == GameManager.GameState.GAMEOVER:
 		velocity = Vector2.ZERO
+		_clear_neon_trail()
+		if _prediction_line:
+			_prediction_line.clear_points()
 		if _ghost_line:
 			_ghost_line.clear_points()
 		if trail_particles:
@@ -205,21 +236,30 @@ func _physics_process(delta: float) -> void:
 	match GameManager.state:
 		GameManager.GameState.ORBITING:
 			_physics_orbit(delta)
-			_update_charge_audio()
-		GameManager.GameState.DASHING:
-			_physics_dash(delta)
 			if _ghost_line:
 				_ghost_line.clear_points()
+			_update_prediction_hint()
+			_update_charge_audio()
+		GameManager.GameState.DASHING:
+			if _prediction_line:
+				_prediction_line.clear_points()
+			_physics_dash(delta)
+			_update_neon_trail()
+			_update_dash_ghost_line()
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 		GameManager.GameState.FALLING:
+			if _prediction_line:
+				_prediction_line.clear_points()
 			_physics_fall(delta)
+			_update_neon_trail()
 			if _ghost_line:
 				_ghost_line.clear_points()
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 		_:
 			velocity = Vector2.ZERO
+			_clear_neon_trail()
 			if _ghost_line:
 				_ghost_line.clear_points()
 			if _charge_hum and _charge_hum.playing:
@@ -254,7 +294,8 @@ func _update_camera_zoom(delta: float) -> void:
 	var zz := lerpf(_cam.zoom.x, z_tgt, 1.0 - exp(-4.2 * delta))
 	_cam.zoom = Vector2(zz, zz)
 	var off_tgt := Vector2(0.0, -180.0 if GameManager.state == GameManager.GameState.DASHING else -140.0)
-	_cam.offset = _cam.offset.lerp(off_tgt, 1.0 - exp(-5.0 * delta))
+	_cam_base_offset = _cam_base_offset.lerp(off_tgt, 1.0 - exp(-5.0 * delta))
+	_cam.offset = _cam_base_offset + _cam_shake
 
 
 func _input(event: InputEvent) -> void:
@@ -459,6 +500,7 @@ func _release_dash() -> void:
 	_coyote_used = false
 	_coyote_armed = velocity.y > 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
+	_clear_neon_trail()
 	if trail_particles:
 		trail_particles.restart()
 		trail_particles.emitting = true
@@ -674,6 +716,9 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	var prev_pos := global_position
 	var pts := int(round(GameManager.multiplier))
 	var combo_style := GameManager.multiplier > 1.0001
+	_clear_neon_trail()
+	_play_hook_shake()
+	_play_impact_squish()
 	GameManager.trigger_capture_haptic()
 	velocity = Vector2.ZERO
 	_anchor = a
@@ -733,18 +778,6 @@ func get_debug_snapshot() -> Dictionary:
 	}
 
 
-func _update_ghost() -> void:
-	if _ghost_line == null or _anchor == null:
-		return
-	if not _is_pointer_down():
-		_ghost_line.clear_points()
-		return
-	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
-	_ghost_line.clear_points()
-	_ghost_line.add_point(Vector2.ZERO)
-	_ghost_line.add_point(tangent * ghost_length * _draw_visual_scale())
-
-
 func _is_pointer_down() -> bool:
 	return (Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT) != 0
 
@@ -766,6 +799,139 @@ func _setup_ghost_line_style() -> void:
 	var tex := ImageTexture.create_from_image(img)
 	_ghost_line.texture = tex
 	_ghost_line.texture_mode = Line2D.LINE_TEXTURE_TILE
+
+
+func _setup_neon_trail() -> void:
+	_neon_trail = Line2D.new()
+	_neon_trail.name = "NeonGhostTrail"
+	_neon_trail.z_index = -7
+	_neon_trail.width = 6.5
+	_neon_trail.antialiased = true
+	_neon_trail.joint_mode = Line2D.LINE_JOINT_ROUND
+	_neon_trail.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	_neon_trail.end_cap_mode = Line2D.LINE_CAP_ROUND
+	var g := Gradient.new()
+	g.add_point(0.0, Color(0.0, 0.92, 0.98, 0.0))
+	g.add_point(0.62, Color(0.0, 0.88, 0.97, 0.4))
+	g.add_point(1.0, Color(0.45, 1.0, 1.0, 0.9))
+	_neon_trail.gradient = g
+	var wc := Curve.new()
+	wc.add_point(0.0, 0.38, 0.0, 1.8)
+	wc.add_point(1.0, 1.0, 0.6, 0.0)
+	_neon_trail.width_curve = wc
+	add_child(_neon_trail)
+
+
+func _setup_prediction_line() -> void:
+	_prediction_line = Line2D.new()
+	_prediction_line.name = "PredictionHint"
+	_prediction_line.z_index = 2
+	_prediction_line.width = 4.5
+	_prediction_line.antialiased = true
+	_prediction_line.default_color = Color(0.25, 0.95, 0.996, 0.36)
+	var pg := Gradient.new()
+	pg.add_point(0.0, Color(0.2, 0.95, 1.0, 0.2))
+	pg.add_point(1.0, Color(0.35, 1.0, 1.0, 0.55))
+	_prediction_line.gradient = pg
+	add_child(_prediction_line)
+
+
+func _setup_wall_guides() -> void:
+	var par := get_parent()
+	if par == null:
+		return
+	_left_wall_guide = Line2D.new()
+	_left_wall_guide.name = "WallGuideLeft"
+	_right_wall_guide = Line2D.new()
+	_right_wall_guide.name = "WallGuideRight"
+	for ln in [_left_wall_guide, _right_wall_guide]:
+		ln.width = 2.0
+		ln.antialiased = true
+		ln.default_color = Color(0.2, 0.98, 1.0, 0.1)
+		ln.z_index = -28
+	par.add_child(_left_wall_guide)
+	par.add_child(_right_wall_guide)
+
+
+func _update_neon_trail() -> void:
+	if _neon_trail == null:
+		return
+	_trail_hist.append(global_position)
+	const MAX_TRAIL := 44
+	while _trail_hist.size() > MAX_TRAIL:
+		_trail_hist.remove_at(0)
+	_neon_trail.clear_points()
+	for i in range(_trail_hist.size()):
+		_neon_trail.add_point(to_local(_trail_hist[i]))
+
+
+func _clear_neon_trail() -> void:
+	_trail_hist.clear()
+	if _neon_trail != null:
+		_neon_trail.clear_points()
+
+
+func _update_prediction_hint() -> void:
+	if _prediction_line == null or _anchor == null:
+		return
+	if not _is_pointer_down():
+		_prediction_line.clear_points()
+		return
+	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
+	var vs := _draw_visual_scale()
+	const DOT_LEN := 5.0
+	const GAP := 15.0
+	const LEAD := 20.0
+	_prediction_line.clear_points()
+	for i in range(4):
+		var t0 := (LEAD + i * (DOT_LEN + GAP)) * vs
+		var t1 := t0 + DOT_LEN * vs
+		_prediction_line.add_point(tangent * t0)
+		_prediction_line.add_point(tangent * t1)
+
+
+func _update_dash_ghost_line() -> void:
+	if _ghost_line == null:
+		return
+	if velocity.length_squared() < 9.0:
+		_ghost_line.clear_points()
+		return
+	var dir := velocity.normalized()
+	_ghost_line.clear_points()
+	_ghost_line.add_point(Vector2.ZERO)
+	_ghost_line.add_point(dir * ghost_length * 1.05)
+
+
+func _play_impact_squish() -> void:
+	if _squish_tween != null and _squish_tween.is_valid():
+		_squish_tween.kill()
+	_squish_scale = Vector2.ONE
+	_squish_tween = create_tween()
+	_squish_tween.tween_property(self, "_squish_scale", Vector2(1.12, 0.84), 0.055).set_trans(
+		Tween.TRANS_BACK
+	).set_ease(Tween.EASE_OUT)
+	_squish_tween.tween_property(self, "_squish_scale", Vector2(0.92, 1.08), 0.05).set_trans(
+		Tween.TRANS_QUAD
+	).set_ease(Tween.EASE_IN_OUT)
+	_squish_tween.tween_property(self, "_squish_scale", Vector2.ONE, 0.07).set_trans(
+		Tween.TRANS_QUAD
+	).set_ease(Tween.EASE_OUT)
+
+
+func _play_hook_shake() -> void:
+	if _cam == null:
+		return
+	if _shake_tween != null and _shake_tween.is_valid():
+		_shake_tween.kill()
+	_cam_shake = Vector2.ZERO
+	var tw := create_tween()
+	_shake_tween = tw
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for i in range(8):
+		var j := Vector2(rng.randf_range(-2.4, 2.4), rng.randf_range(-2.4, 2.4))
+		tw.tween_property(self, "_cam_shake", j, 0.011)
+	tw.tween_property(self, "_cam_shake", Vector2.ZERO, 0.012)
 
 
 func _setup_screen_safe_container() -> void:
@@ -814,6 +980,18 @@ func _update_screen_safe_container() -> void:
 	if floor_shape != null:
 		floor_shape.normal = Vector2.UP
 		floor_shape.distance = -floor_y
+	var bounds := _safe_play_bounds()
+	var pad := 600.0
+	var top_y := bounds.position.y - pad
+	var bot_y := bounds.position.y + bounds.size.y + pad
+	if _left_wall_guide != null:
+		_left_wall_guide.clear_points()
+		_left_wall_guide.add_point(Vector2(left_w, top_y))
+		_left_wall_guide.add_point(Vector2(left_w, bot_y))
+	if _right_wall_guide != null:
+		_right_wall_guide.clear_points()
+		_right_wall_guide.add_point(Vector2(right_w, top_y))
+		_right_wall_guide.add_point(Vector2(right_w, bot_y))
 
 
 func _handle_air_collision(col: KinematicCollision2D) -> bool:

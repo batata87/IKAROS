@@ -2,7 +2,8 @@ extends CharacterBody2D
 
 enum PlayerState { IDLE, ATTACHED, LAUNCHED, FALLING, DEAD }
 
-@export var launch_speed: float = 900.0
+const LAUNCH_FORCE: float = 800.0
+const HARD_SPEED_CAP: float = 1200.0
 @export var gravity: float = 1250.0
 @export var max_air_speed: float = 1400.0
 @export var orbit_angular_speed: float = 1.8
@@ -68,6 +69,8 @@ func _physics_process(delta: float) -> void:
 	if state == PlayerState.DEAD:
 		velocity = Vector2.ZERO
 		return
+	# Hard velocity cap to avoid runaway acceleration and off-screen teleports.
+	velocity = velocity.limit_length(HARD_SPEED_CAP)
 	match state:
 		PlayerState.ATTACHED:
 			_update_orbit(delta)
@@ -155,7 +158,9 @@ func _launch_from_anchor() -> void:
 	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
 	_anchor = null
-	velocity = launch_dir * launch_speed
+	# Reset velocity each launch to avoid stacking speed from prior states.
+	velocity = Vector2.ZERO
+	velocity = launch_dir * LAUNCH_FORCE
 	state = PlayerState.LAUNCHED
 	GameManager.on_dash_started(GameManager.get_time_in_current_orbit())
 	GameManager.set_game_state(GameManager.GameState.DASHING)
@@ -199,6 +204,9 @@ func _handle_collision(col: KinematicCollision2D) -> bool:
 
 func _check_kill_zone() -> bool:
 	var cam_y := _cam.global_position.y if _cam != null else global_position.y
+	if absf(global_position.y - cam_y) > 2000.0:
+		_die("kill_zone_runaway_camera_distance")
+		return true
 	if global_position.y > cam_y + 600.0:
 		_die("kill_zone_height")
 		return true

@@ -43,6 +43,10 @@ pointing/emulate_touch_from_mouse=true
 2d_physics/layer_1="anchors"
 2d_physics/layer_2="player"
 
+[physics]
+
+2d/run_on_separate_thread=false
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

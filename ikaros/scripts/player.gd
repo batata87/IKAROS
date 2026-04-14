@@ -90,7 +90,12 @@ func _physics_process(delta: float) -> void:
 		global_position.x = screen_width
 		if velocity.x > 0.0:
 			velocity.x = -velocity.x
-	if _check_kill_zone():
+	var is_active_state := (
+		state == PlayerState.ATTACHED
+		or state == PlayerState.LAUNCHED
+		or state == PlayerState.FALLING
+	)
+	if is_active_state and _check_kill_zone():
 		return
 	match state:
 		PlayerState.ATTACHED:

@@ -19,6 +19,8 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var zoom_speed_ref: float = 920.0
 @export var launch_power: float = 980.0
 @export var max_air_speed: float = 1300.0
+@export var dash_hint_duration: float = 0.24
+@export var dash_hint_length: float = 130.0
 
 var _anchor: NeonAnchor = null
 var _orbit_angle: float = 0.0
@@ -244,8 +246,13 @@ func _physics_process(delta: float) -> void:
 			if _prediction_line:
 				_prediction_line.clear_points()
 			_physics_dash(delta)
-			_update_neon_trail()
-			_update_dash_ghost_line()
+			if GameManager.state == GameManager.GameState.DASHING:
+				_update_neon_trail()
+				_update_dash_ghost_line()
+			else:
+				_clear_neon_trail()
+				if _ghost_line:
+					_ghost_line.clear_points()
 			if _charge_hum and _charge_hum.playing:
 				_charge_hum.stop()
 		GameManager.GameState.FALLING:
@@ -550,7 +557,6 @@ func _spawn_coyote_fx() -> void:
 func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
 	_release_capture_ignore_if_exited()
-	_apply_subtle_magnet(delta)
 	_cap_air_velocity()
 	var col = move_and_collide(velocity * delta)
 	if col:
@@ -572,7 +578,7 @@ func _physics_dash(delta: float) -> void:
 
 func _physics_fall(delta: float) -> void:
 	velocity.y += dash_gravity * delta
-	_apply_subtle_magnet(delta)
+	_apply_subtle_magnet(delta, 0.35)
 	_cap_air_velocity()
 	var col := move_and_collide(velocity * delta)
 	if col:
@@ -657,7 +663,9 @@ func _update_air_still_fallback(delta: float) -> void:
 		_air_still_sec = 0.0
 
 
-func _apply_subtle_magnet(delta: float) -> void:
+func _apply_subtle_magnet(delta: float, strength: float = 1.0) -> void:
+	if strength <= 0.0:
+		return
 	var best: NeonAnchor = null
 	var best_d := INF
 	for n in get_tree().get_nodes_in_group("anchors"):
@@ -672,7 +680,7 @@ func _apply_subtle_magnet(delta: float) -> void:
 			best = a
 	if best != null and best_d <= 50.0:
 		var dir := (best.global_position - global_position).normalized()
-		velocity += dir * 220.0 * delta
+		velocity += dir * 220.0 * strength * delta
 
 
 func _cap_air_velocity() -> void:
@@ -893,13 +901,16 @@ func _update_prediction_hint() -> void:
 func _update_dash_ghost_line() -> void:
 	if _ghost_line == null:
 		return
+	if _dash_time_sec > dash_hint_duration or velocity.y > 120.0:
+		_ghost_line.clear_points()
+		return
 	if velocity.length_squared() < 9.0:
 		_ghost_line.clear_points()
 		return
 	var dir := velocity.normalized()
 	_ghost_line.clear_points()
 	_ghost_line.add_point(Vector2.ZERO)
-	_ghost_line.add_point(dir * ghost_length * 1.05)
+	_ghost_line.add_point(dir * dash_hint_length)
 
 
 func _play_impact_squish() -> void:
@@ -967,7 +978,7 @@ func _update_screen_safe_container() -> void:
 	var rect := get_viewport().get_visible_rect()
 	var left_w := _screen_to_world(Vector2(0.0, rect.size.y * 0.5)).x
 	var right_w := _screen_to_world(Vector2(rect.size.x, rect.size.y * 0.5)).x
-	var floor_y := global_position.y + 500.0
+	var floor_y := _screen_to_world(Vector2(rect.size.x * 0.5, rect.size.y)).y + 140.0
 	var left_shape := (_left_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var right_shape := (_right_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var floor_shape := (_kill_floor.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D

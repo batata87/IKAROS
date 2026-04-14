@@ -203,6 +203,7 @@ func _load_build_label() -> void:
 
 
 func _process(_delta: float) -> void:
+	_publish_web_qa_snapshot()
 	if _debug_label == null:
 		return
 	_debug_label.visible = _debug_overlay_enabled and _run_started and not main_menu.visible
@@ -248,3 +249,20 @@ func _ensure_debug_overlay() -> void:
 	_debug_label.add_theme_constant_override("shadow_offset_y", 1)
 	_debug_label.text = ""
 	$CanvasLayer/HUD.add_child(_debug_label)
+
+
+func _publish_web_qa_snapshot() -> void:
+	if not OS.has_feature("web"):
+		return
+	if not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var payload := {
+		"runStarted": _run_started,
+		"mainMenuVisible": main_menu.visible if main_menu != null else false,
+		"gameOverVisible": game_over_modal.visible if game_over_modal != null else false,
+		"score": GameManager.score,
+		"state": int(GameManager.state),
+	}
+	if player != null and player.has_method("get_debug_snapshot"):
+		payload["player"] = player.call("get_debug_snapshot")
+	JavaScriptBridge.eval("window.__ikarosQaSnapshot = " + JSON.stringify(payload) + ";", true)

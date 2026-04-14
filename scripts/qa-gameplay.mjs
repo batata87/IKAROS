@@ -34,6 +34,9 @@ const metrics = {
   consoleErrors: 0,
   blackFrameSamples: 0,
   frozenFrameStreak: 0,
+  telemetrySamples: 0,
+  runStartedSamples: 0,
+  offscreenSamples: 0,
 };
 
 let maxFrozenFrameStreak = 0;
@@ -136,6 +139,8 @@ async function run() {
     const startTime = Date.now();
     const keyPool = ['Space', 'ArrowUp', 'ArrowLeft', 'ArrowRight'];
     let previousFrameSignature = null;
+    let gameplayStarted = false;
+    let offscreenStreak = 0;
 
     for (let i = 0; i < QA_STEPS; i += 1) {
       if (Date.now() - startTime > QA_DURATION_MS) {
@@ -200,6 +205,30 @@ async function run() {
         previousFrameSignature = frameProbe.signature;
       }
 
+      const qaSnapshot = await page.evaluate(() => window.__ikarosQaSnapshot || null);
+      if (qaSnapshot) {
+        metrics.telemetrySamples += 1;
+        if (qaSnapshot.runStarted) {
+          gameplayStarted = true;
+          metrics.runStartedSamples += 1;
+        }
+        const px = qaSnapshot.player?.px;
+        if (typeof px === 'number' && Math.abs(px) > 700) {
+          offscreenStreak += 1;
+          metrics.offscreenSamples += 1;
+        } else {
+          offscreenStreak = 0;
+        }
+        if (offscreenStreak >= 5) {
+          addDefect(
+            'p0',
+            'Player left gameplay viewport',
+            `Player x-position remained out of range for ${offscreenStreak} consecutive probes.`
+          );
+          offscreenStreak = 0;
+        }
+      }
+
       metrics.stepsExecuted += 1;
     }
 
@@ -243,6 +272,22 @@ async function run() {
         'p0',
         'Possible frozen gameplay loop',
         `Frame signature stayed unchanged for ${maxFrozenFrameStreak} consecutive probes.`
+      );
+    }
+
+    if (metrics.telemetrySamples > 0 && !gameplayStarted) {
+      addDefect(
+        'p0',
+        'Gameplay did not start from front UI',
+        'Telemetry indicates the run never transitioned into active gameplay.'
+      );
+    }
+
+    if (metrics.telemetrySamples === 0) {
+      addDefect(
+        'p1',
+        'Gameplay telemetry unavailable',
+        'QA could not access runtime gameplay telemetry; results may miss in-engine movement bugs.'
       );
     }
 

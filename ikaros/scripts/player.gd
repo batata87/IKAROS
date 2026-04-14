@@ -147,8 +147,9 @@ func _launch_from_anchor() -> void:
 	var launch_dir := tangent.rotated(-PI * 0.25).normalized()
 	# Keep launches forward/upward to avoid dead runs that dump below play space.
 	launch_dir = (launch_dir + Vector2(0.0, -0.45)).normalized()
-	if launch_dir.y > -0.12:
-		launch_dir.y = -0.12
+	# Enforce a meaningful upward component so launch is never near-horizontal.
+	if launch_dir.y > -0.55:
+		launch_dir.y = -0.55
 		launch_dir = launch_dir.normalized()
 	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
@@ -332,6 +333,9 @@ func get_debug_snapshot() -> Dictionary:
 		nearest = minf(nearest, global_position.distance_to(a.global_position))
 	return {
 		"state": str(state),
+		"px": snappedf(global_position.x, 0.1),
+		"py": snappedf(global_position.y, 0.1),
+		"vx": snappedf(velocity.x, 0.1),
 		"spd": snappedf(velocity.length(), 0.1),
 		"vy": snappedf(velocity.y, 0.1),
 		"nearest": -1.0 if nearest == INF else snappedf(nearest, 0.1),

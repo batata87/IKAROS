@@ -104,7 +104,7 @@ func _enforce_object_cap() -> void:
 			alive.append(n)
 	_spawn_order = alive
 	while _spawn_order.size() > MAX_OBJECTS:
-		var oldest := _spawn_order.pop_front()
+		var oldest: Node2D = _spawn_order.pop_front() as Node2D
 		if oldest != null and is_instance_valid(oldest):
 			oldest.queue_free()
 			_delete_count += 1

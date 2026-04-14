@@ -334,7 +334,6 @@ func _is_tap_event(event: InputEvent) -> bool:
 
 func _on_tap() -> void:
 	if GameManager.state == GameManager.GameState.GAMEOVER:
-		get_tree().reload_current_scene()
 		return
 	if GameManager.state == GameManager.GameState.DASHING:
 		if _coyote_armed and not _coyote_used and velocity.y > 0.0:
@@ -623,8 +622,19 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 
 func _enforce_viewport_bounce() -> void:
-	# Physics container (screen walls + kill floor) owns boundary behavior.
-	return
+	# Fallback guard: keep side-wall bounds reliable even on rare high-speed frames.
+	if GameManager.state != GameManager.GameState.DASHING and GameManager.state != GameManager.GameState.FALLING:
+		return
+	var bounds := _safe_play_bounds()
+	var radius := 14.0
+	var left_x := bounds.position.x + radius
+	var right_x := bounds.position.x + bounds.size.x - radius
+	if global_position.x < left_x:
+		global_position.x = left_x
+		velocity.x = absf(velocity.x)
+	elif global_position.x > right_x:
+		global_position.x = right_x
+		velocity.x = -absf(velocity.x)
 
 
 func _pick_next_target_anchor() -> NeonAnchor:

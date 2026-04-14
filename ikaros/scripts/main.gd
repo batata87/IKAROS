@@ -1,5 +1,6 @@
 extends Node2D
 ## Bootstraps menu, LevelGenerator + Player, HUD, and The Vault.
+static var _auto_start_after_reload: bool = false
 
 @onready var level_gen: Node2D = $LevelGenerator
 @onready var player: CharacterBody2D = $Player
@@ -11,6 +12,10 @@ extends Node2D
 @onready var store_screen = $CanvasLayer/StoreScreen
 @onready var btn_vault: Button = $CanvasLayer/MainMenu/Center/VBox/BtnVault
 @onready var btn_feedback: Button = $CanvasLayer/MainMenu/BtnFeedback
+@onready var game_over_modal: Control = $CanvasLayer/GameOverModal
+@onready var game_over_score: Label = $CanvasLayer/GameOverModal/Center/Panel/Margin/VBox/ScoreLabel
+@onready var btn_try_again: Button = $CanvasLayer/GameOverModal/Center/Panel/Margin/VBox/BtnTryAgain
+@onready var btn_return_home: Button = $CanvasLayer/GameOverModal/Center/Panel/Margin/VBox/BtnReturnHome
 @onready var chromatic_overlay: CanvasItem = $ScreenJuiceLayer/ChromaticOverlay
 var _run_started: bool = false
 var _debug_label: Label = null
@@ -20,16 +25,22 @@ var _debug_overlay_enabled: bool = true
 func _ready() -> void:
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.multiplier_changed.connect(_on_multiplier_changed)
+	GameManager.state_changed.connect(_on_game_state_changed)
 	CurrencyManager.lux_changed.connect(_on_lux_changed)
 	store_screen.vault_closed.connect(_on_vault_closed)
 
 	main_menu.get_node("Center/VBox/BtnPlay").pressed.connect(_on_play_pressed)
 	main_menu.get_node("Center/VBox/BtnVault").pressed.connect(_on_vault_pressed)
+	btn_try_again.pressed.connect(_on_try_again_pressed)
+	btn_return_home.pressed.connect(_on_return_home_pressed)
 
 	level_gen.process_mode = Node.PROCESS_MODE_DISABLED
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 
 	main_menu.visible = true
+	main_menu.process_mode = Node.PROCESS_MODE_INHERIT
+	game_over_modal.visible = false
+	game_over_modal.process_mode = Node.PROCESS_MODE_DISABLED
 
 	_refresh_hud()
 	_on_lux_changed(CurrencyManager.lux)
@@ -41,6 +52,9 @@ func _ready() -> void:
 		chromatic_overlay.process_mode = Node.PROCESS_MODE_DISABLED
 	_ensure_debug_overlay()
 	set_process(true)
+	if _auto_start_after_reload:
+		_auto_start_after_reload = false
+		call_deferred("_start_run")
 
 
 func _input(event: InputEvent) -> void:
@@ -91,6 +105,8 @@ func _start_run() -> void:
 	_run_started = true
 	main_menu.visible = false
 	main_menu.process_mode = Node.PROCESS_MODE_DISABLED
+	game_over_modal.visible = false
+	game_over_modal.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	level_gen.call("setup", player)
@@ -112,6 +128,30 @@ func _on_vault_closed() -> void:
 	main_menu.visible = true
 	main_menu.process_mode = Node.PROCESS_MODE_INHERIT
 	_run_started = false
+
+
+func _on_game_state_changed(new_state: GameManager.GameState) -> void:
+	if new_state != GameManager.GameState.GAMEOVER:
+		return
+	if not _run_started:
+		return
+	_run_started = false
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	level_gen.process_mode = Node.PROCESS_MODE_DISABLED
+	if game_over_score:
+		game_over_score.text = "Score: %d   High Score: %d" % [GameManager.score, GameManager.high_score]
+	game_over_modal.visible = true
+	game_over_modal.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+func _on_try_again_pressed() -> void:
+	_auto_start_after_reload = true
+	get_tree().reload_current_scene()
+
+
+func _on_return_home_pressed() -> void:
+	_auto_start_after_reload = false
+	get_tree().reload_current_scene()
 
 
 func _on_lux_changed(balance: int) -> void:

@@ -318,6 +318,77 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Close"
 
+[node name="GameOverModal" type="Control" parent="CanvasLayer"]
+visible = false
+z_index = 19
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="CanvasLayer/GameOverModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.78)
+
+[node name="Center" type="CenterContainer" parent="CanvasLayer/GameOverModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Panel" type="PanelContainer" parent="CanvasLayer/GameOverModal/Center"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/GameOverModal/Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/GameOverModal/Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="CanvasLayer/GameOverModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 1, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "Game Over"
+horizontal_alignment = 1
+
+[node name="ScoreLabel" type="Label" parent="CanvasLayer/GameOverModal/Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Score: 0   High Score: 0"
+horizontal_alignment = 1
+
+[node name="BtnTryAgain" type="Button" parent="CanvasLayer/GameOverModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Try Again"
+
+[node name="BtnReturnHome" type="Button" parent="CanvasLayer/GameOverModal/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Return to Homepage"
+
 [node name="StoreScreen" parent="CanvasLayer" instance=ExtResource("4_store")]
 
 [node name="LevelGenerator" type="Node2D" parent="."]

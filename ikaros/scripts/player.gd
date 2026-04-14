@@ -145,12 +145,13 @@ func _launch_from_anchor() -> void:
 		return
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	var launch_dir := tangent.rotated(-PI * 0.25).normalized()
-	# Keep launches forward/upward to avoid dead runs that dump below play space.
-	launch_dir = (launch_dir + Vector2(0.0, -0.45)).normalized()
-	# Enforce a meaningful upward component so launch is never near-horizontal.
-	if launch_dir.y > -0.55:
-		launch_dir.y = -0.55
-		launch_dir = launch_dir.normalized()
+	# Keep launches mostly upward and cap lateral velocity to prevent off-screen escapes.
+	launch_dir = (launch_dir + Vector2(0.0, -0.9)).normalized()
+	launch_dir.x = clampf(launch_dir.x, -0.38, 0.38)
+	launch_dir.y = -absf(launch_dir.y)
+	if launch_dir.y > -0.72:
+		launch_dir.y = -0.72
+	launch_dir = launch_dir.normalized()
 	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
 	_anchor = null
@@ -200,6 +201,10 @@ func _check_kill_zone() -> bool:
 	var cam_y := _cam.global_position.y if _cam != null else global_position.y
 	if global_position.y > cam_y + 600.0:
 		_die("kill_zone_height")
+		return true
+	var cam_x := _cam.global_position.x if _cam != null else global_position.x
+	if absf(global_position.x - cam_x) > 520.0:
+		_die("kill_zone_lateral")
 		return true
 	return false
 

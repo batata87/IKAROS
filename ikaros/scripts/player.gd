@@ -816,8 +816,8 @@ func _setup_neon_trail() -> void:
 	g.add_point(1.0, Color(0.45, 1.0, 1.0, 0.9))
 	_neon_trail.gradient = g
 	var wc := Curve.new()
-	wc.add_point(0.0, 0.38, 0.0, 1.8)
-	wc.add_point(1.0, 1.0, 0.6, 0.0)
+	wc.add_point(Vector2(0.0, 0.38), 0.0, 1.8)
+	wc.add_point(Vector2(1.0, 1.0), 0.6, 0.0)
 	_neon_trail.width_curve = wc
 	add_child(_neon_trail)
 

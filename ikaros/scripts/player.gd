@@ -303,6 +303,9 @@ func _update_camera_zoom(delta: float) -> void:
 	var z_tgt := lerpf(zoom_tight, zoom_wide, t)
 	var zz := lerpf(_cam.zoom.x, z_tgt, 1.0 - exp(-4.2 * delta))
 	_cam.zoom = Vector2(zz, zz)
+	# Containment camera: follow vertical climb only; keep world X locked.
+	_cam.position.x = -global_position.x
+	_cam.position.y = 0.0
 	var off_tgt := Vector2(0.0, -180.0 if GameManager.state == GameManager.GameState.DASHING else -140.0)
 	_cam_base_offset = _cam_base_offset.lerp(off_tgt, 1.0 - exp(-5.0 * delta))
 	_cam.offset = _cam_base_offset + _cam_shake
@@ -881,7 +884,8 @@ func _setup_wall_guides() -> void:
 	for ln in [_left_wall_guide, _right_wall_guide]:
 		ln.width = 2.0
 		ln.antialiased = true
-		ln.default_color = Color(0.2, 0.98, 1.0, 0.1)
+		# Neon containment rails (#00F2FE @ 0.1 alpha).
+		ln.default_color = Color(0.0, 0.949, 0.996, 0.1)
 		ln.z_index = -28
 	par.add_child(_left_wall_guide)
 	par.add_child(_right_wall_guide)

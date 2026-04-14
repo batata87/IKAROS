@@ -54,6 +54,7 @@ func _ready() -> void:
 		chromatic_overlay.visible = false
 		chromatic_overlay.process_mode = Node.PROCESS_MODE_DISABLED
 	_on_world_theme_changed(ItemDatabase.peek_world_theme())
+	reset_game()
 	_ensure_debug_overlay()
 	set_process(true)
 	if _auto_start_after_reload:
@@ -113,8 +114,18 @@ func _start_run() -> void:
 	game_over_modal.process_mode = Node.PROCESS_MODE_DISABLED
 	level_gen.process_mode = Node.PROCESS_MODE_INHERIT
 	player.process_mode = Node.PROCESS_MODE_INHERIT
-	level_gen.call("setup", player)
+	reset_game()
 	player.initialize_after_level()
+	_refresh_hud()
+
+
+func reset_game() -> void:
+	GameManager.reset_run()
+	GameManager.score = 0
+	if level_gen != null and level_gen.has_method("hard_reset_layout"):
+		level_gen.call("hard_reset_layout", player)
+	if player != null and player.has_method("hard_reset_state"):
+		player.call("hard_reset_state")
 	_refresh_hud()
 
 

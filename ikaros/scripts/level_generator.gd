@@ -19,17 +19,28 @@ var _spawn_order: Array[Node2D] = []
 
 
 func setup(player) -> void:
+	hard_reset_layout(player)
+
+
+func hard_reset_layout(player) -> void:
 	_player = player
 	for c in get_children():
 		c.queue_free()
 	_spawn_order.clear()
 	_spawn_count = 0
 	_delete_count = 0
-	_last_spawn_y = 0.0
+	var vp_size := get_viewport().get_visible_rect().size
+	var center_x := vp_size.x * 0.5
+	var safe_start := [
+		Vector2(center_x, 0.0),
+		Vector2(center_x + 170.0, -280.0),
+		Vector2(center_x - 170.0, -560.0),
+	]
+	for pos in safe_start:
+		_spawn_anchor(pos)
+	_last_spawn_y = safe_start[safe_start.size() - 1].y
 	_next_side = 1
-	var first := _spawn_anchor(Vector2(0.0, 0.0))
-	_last_spawn_y = first.global_position.y
-	for _i in range(min_anchors_ahead + 1):
+	while _count_anchors_ahead() < min_anchors_ahead:
 		_spawn_next()
 
 

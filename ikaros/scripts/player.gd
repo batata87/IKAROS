@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 enum PlayerState { IDLE, ATTACHED, LAUNCHED, FALLING, DEAD }
 
-const LAUNCH_FORCE: float = 800.0
+const LAUNCH_FORCE: float = 750.0
 const HARD_SPEED_CAP: float = 1200.0
 @export var gravity: float = 1250.0
 @export var max_air_speed: float = 1400.0
@@ -52,6 +52,16 @@ func initialize_after_level() -> void:
 	_attach_to_first_anchor()
 
 
+func hard_reset_state() -> void:
+	velocity = Vector2.ZERO
+	rotation = 0.0
+	state = PlayerState.IDLE
+	_anchor = null
+	_ignore_anchor = null
+	_last_fail_reason = ""
+	_camera_world_y = global_position.y
+
+
 func _input(event: InputEvent) -> void:
 	if state != PlayerState.ATTACHED:
 		return
@@ -71,6 +81,17 @@ func _physics_process(delta: float) -> void:
 		return
 	# Hard velocity cap to avoid runaway acceleration and off-screen teleports.
 	velocity = velocity.limit_length(HARD_SPEED_CAP)
+	var screen_width := get_viewport().get_visible_rect().size.x
+	if global_position.x <= 0.0:
+		global_position.x = 0.0
+		if velocity.x < 0.0:
+			velocity.x = -velocity.x
+	elif global_position.x >= screen_width:
+		global_position.x = screen_width
+		if velocity.x > 0.0:
+			velocity.x = -velocity.x
+	if _check_kill_zone():
+		return
 	match state:
 		PlayerState.ATTACHED:
 			_update_orbit(delta)
@@ -148,13 +169,7 @@ func _launch_from_anchor() -> void:
 		return
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	var launch_dir := tangent.rotated(-PI * 0.25).normalized()
-	# Keep launches mostly upward and cap lateral velocity to prevent off-screen escapes.
-	launch_dir = (launch_dir + Vector2(0.0, -0.9)).normalized()
-	launch_dir.x = clampf(launch_dir.x, -0.38, 0.38)
-	launch_dir.y = -absf(launch_dir.y)
-	if launch_dir.y > -0.72:
-		launch_dir.y = -0.72
-	launch_dir = launch_dir.normalized()
+	launch_dir = Vector2(launch_dir.x, -absf(launch_dir.y)).normalized()
 	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
 	_anchor = null
@@ -265,8 +280,8 @@ func _die(reason: String) -> void:
 
 func _setup_boundaries() -> void:
 	var p := get_parent()
-	_left_wall = _make_boundary("LeftWall", p, "screen_wall")
-	_right_wall = _make_boundary("RightWall", p, "screen_wall")
+	_left_wall = _make_boundary("WallLeft", p, "screen_wall")
+	_right_wall = _make_boundary("WallRight", p, "screen_wall")
 	_kill_floor = _make_boundary("KillFloor", p, "screen_kill_zone")
 
 
@@ -302,8 +317,8 @@ func _update_boundaries_and_rails() -> void:
 	if _left_wall == null or _right_wall == null or _kill_floor == null:
 		return
 	var rect := get_viewport().get_visible_rect()
-	var left_x := _screen_to_world(Vector2(0.0, rect.size.y * 0.5)).x
-	var right_x := _screen_to_world(Vector2(rect.size.x, rect.size.y * 0.5)).x
+	var left_x := 0.0
+	var right_x := rect.size.x
 	var cam_y := _cam.global_position.y if _cam != null else global_position.y
 	var floor_y := cam_y + 600.0
 	var left_shape := (_left_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
@@ -328,9 +343,9 @@ func _update_boundaries_and_rails() -> void:
 func _update_camera_lock() -> void:
 	if _cam == null:
 		return
-	# Lock horizontal drift and only move camera upward in world space.
+	# Keep horizontal camera stable and move only upward.
 	_camera_world_y = minf(_camera_world_y, global_position.y)
-	_cam.position = Vector2(-global_position.x, _camera_world_y - global_position.y)
+	_cam.position = Vector2(0.0, _camera_world_y - global_position.y)
 
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:

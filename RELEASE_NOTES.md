@@ -123,3 +123,13 @@
 - UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
 - Add live gameplay telemetry overlay for iOS tuning.
 - Fix circle lifecycle crash risk and restore physics-first launches.
+## v0.0.1+b15
+- Date: 2026-04-14T13:41:53.244Z
+- Gameplay: anchor chain progression tuned to reduce early clutter and improve upward readability.
+- Gameplay: countdown timer fairness improved so active anchor timer no longer stalls at upper heights once started.
+- Gameplay: strictly upward movement enforcement (downward/backward dash paths now fail instead of drifting).
+- Gameplay: anti-stuck/endless-flight safeguards tightened for dash and timeout states.
+- Camera: upward lead offset added to keep upcoming circles visible near top of screen.
+- UI: welcome-screen build stamp visibility and alignment corrected for iPhone layouts.
+- Fix strict typing warning in object cap cleanup.
+- Hard reset core gameplay with FSM flow and strict object containment.

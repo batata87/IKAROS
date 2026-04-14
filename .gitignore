@@ -4,6 +4,7 @@ dist
 .env.local
 *.log
 .netlify
+build/qa/
 
 # Godot (IKAROS)
 ikaros/.godot/

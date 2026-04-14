@@ -1,0 +1,133 @@
+name: Scheduled Gameplay QA
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 12 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  gameplay-qa:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npm run qa:install-browsers
+
+      - name: Build app (CI-safe, no Notion dependency)
+        run: npm run stamp:build && npx vite build
+
+      - name: Start preview server
+        run: npm run preview &
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:3333/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Preview server did not start in time."
+          exit 1
+
+      - name: Run gameplay QA simulation
+        run: npm run qa:gameplay
+        env:
+          QA_URL: http://127.0.0.1:3333/
+
+      - name: Upload QA artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report-${{ github.run_number }}
+          path: build/qa
+          if-no-files-found: error
+
+      - name: Parse findings
+        id: findings
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('build/qa/bug-report.json', 'utf8'));
+            const defects = report.defects || [];
+            const hasFindings = defects.length > 0;
+            const rank = { p0: 0, p1: 1, p2: 2, p3: 3 };
+            const highest = defects.reduce((acc, d) => {
+              if (!d?.severity) return acc;
+              if (!acc) return d.severity;
+              return rank[d.severity] < rank[acc] ? d.severity : acc;
+            }, null) || 'none';
+            core.setOutput('has_findings', String(hasFindings));
+            core.setOutput('defect_count', String(defects.length));
+            core.setOutput('top_defect', defects[0]?.title || 'none');
+            core.setOutput('highest_severity', highest);
+
+      - name: Open bug issue when findings exist
+        if: steps.findings.outputs.has_findings == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('build/qa/bug-report.json', 'utf8'));
+            const defects = report.defects || [];
+            const logs = report.logs || [];
+            const rank = { p0: 0, p1: 1, p2: 2, p3: 3 };
+            const highest = defects.reduce((acc, d) => {
+              if (!d?.severity) return acc;
+              if (!acc) return d.severity;
+              return rank[d.severity] < rank[acc] ? d.severity : acc;
+            }, null) || 'p3';
+            const top = defects.slice(0, 10).map((d, i) => `${i + 1}. [${d.severity}] ${d.title} - ${d.details}`).join('\n');
+            const recentLogs = logs.slice(-20).map((l) => `- ${l.timestamp}: ${l.message}`).join('\n');
+            const body = [
+              'Automated gameplay QA found issues.',
+              '',
+              `- Run: ${context.runNumber}`,
+              `- URL: ${report.metrics?.url || 'n/a'}`,
+              `- Started: ${report.metrics?.startedAt || 'n/a'}`,
+              `- Defect count: ${defects.length}`,
+              '',
+              '## Top Findings',
+              top || 'No entries.',
+              '',
+              '## Recent Event Log',
+              recentLogs || 'No events.',
+              '',
+              `Artifact: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            ].join('\n');
+            const issueResponse = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Gameplay QA findings (run #${context.runNumber})`,
+              body,
+              labels: ['bug', 'qa', 'autofix-candidate', `severity:${highest}`]
+            });
+            const issueNumber = issueResponse.data.number;
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'qa-autofix.yml',
+              ref: context.ref.replace('refs/heads/', ''),
+              inputs: {
+                issue_number: String(issueNumber),
+                base_branch: context.ref.replace('refs/heads/', '')
+              }
+            });

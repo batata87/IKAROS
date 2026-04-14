@@ -9,6 +9,7 @@ enum PlayerState { IDLE, ATTACHED, LAUNCHED, FALLING, DEAD }
 
 var state: PlayerState = PlayerState.IDLE
 var _anchor: NeonAnchor = null
+var _ignore_anchor: NeonAnchor = null
 var _orbit_angle: float = PI * 0.5
 var _left_wall: StaticBody2D
 var _right_wall: StaticBody2D
@@ -123,6 +124,7 @@ func _attach_anchor(a: NeonAnchor) -> void:
 		_orbit_angle = PI * 0.5
 	global_position = _anchor.global_position + Vector2.RIGHT.rotated(_orbit_angle) * _anchor.orbit_radius
 	velocity = Vector2.ZERO
+	_ignore_anchor = null
 	state = PlayerState.ATTACHED
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 
@@ -140,6 +142,7 @@ func _launch_from_anchor() -> void:
 		return
 	var tangent := Vector2.RIGHT.rotated(_orbit_angle + PI * 0.5).normalized()
 	var launch_dir := tangent.rotated(-PI * 0.25).normalized()
+	_ignore_anchor = _anchor
 	_anchor.set_active_orbit_anchor(false)
 	_anchor = null
 	velocity = launch_dir * launch_speed
@@ -167,6 +170,7 @@ func _update_air(delta: float, apply_gravity: bool) -> void:
 		return
 	if _check_kill_zone():
 		return
+	_release_ignored_anchor_if_exited()
 	_try_hook_anchor()
 
 
@@ -200,6 +204,8 @@ func _try_hook_anchor() -> void:
 			continue
 		if a == _anchor:
 			continue
+		if _ignore_anchor != null and a == _ignore_anchor:
+			continue
 		if a.contains_point_global(global_position):
 			var d := global_position.distance_squared_to(a.global_position)
 			if d < best_d:
@@ -211,6 +217,14 @@ func _try_hook_anchor() -> void:
 	GameManager.trigger_capture_haptic()
 	best.play_capture_squash()
 	_attach_anchor(best)
+
+
+func _release_ignored_anchor_if_exited() -> void:
+	if _ignore_anchor == null or not is_instance_valid(_ignore_anchor):
+		_ignore_anchor = null
+		return
+	if not _ignore_anchor.contains_point_global(global_position):
+		_ignore_anchor = null
 
 
 func _never_stuck_rule() -> void:

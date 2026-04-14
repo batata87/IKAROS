@@ -8,6 +8,7 @@ signal equipped_changed(
 	anchor_ring: Color,
 	anchor_core: Color,
 )
+signal world_theme_changed(theme: Dictionary)
 
 const ITEMS_JSON := "res://data/items.json"
 const USER_PATH := "user://vault_items.cfg"
@@ -17,12 +18,14 @@ const KEY_UNLOCKED := "unlocked_ids"
 const KEY_EQUIPPED_LEGACY := "equipped_id"
 const KEY_EQUIPPED_DOT := "equipped_dot_id"
 const KEY_EQUIPPED_RING := "equipped_ring_id"
+const KEY_EQUIPPED_WORLD := "equipped_world_id"
 
 var _items: Array = []
 ## id -> bool
 var _unlocked: Dictionary = {}
 var equipped_dot_id: String = "skin_default"
 var equipped_ring_id: String = "skin_default"
+var equipped_world_id: String = "world_default"
 
 
 func _ready() -> void:
@@ -56,31 +59,42 @@ func _load_user() -> void:
 	elif raw is Array:
 		for id in raw:
 			_unlocked[str(id)] = true
+	_ensure_default_unlocks()
 
 	if cf.has_section_key(SEC, KEY_EQUIPPED_DOT):
 		equipped_dot_id = str(cf.get_value(SEC, KEY_EQUIPPED_DOT, "skin_default"))
 		equipped_ring_id = str(cf.get_value(SEC, KEY_EQUIPPED_RING, "skin_default"))
+		equipped_world_id = str(cf.get_value(SEC, KEY_EQUIPPED_WORLD, "world_default"))
 	else:
 		var legacy := str(cf.get_value(SEC, KEY_EQUIPPED_LEGACY, "skin_default"))
 		equipped_dot_id = legacy
 		equipped_ring_id = legacy
+		equipped_world_id = "world_default"
 
 	if not is_unlocked(equipped_dot_id):
 		equipped_dot_id = "skin_default"
 	if not is_unlocked(equipped_ring_id):
 		equipped_ring_id = "skin_default"
+	if not is_unlocked(equipped_world_id):
+		equipped_world_id = "world_default"
 
 
 func _seed_defaults() -> void:
+	_unlocked.clear()
+	_ensure_default_unlocks()
+	equipped_dot_id = "skin_default"
+	equipped_ring_id = "skin_default"
+	equipped_world_id = "world_default"
+	save_user()
+
+
+func _ensure_default_unlocks() -> void:
 	for it in _items:
 		if not it is Dictionary:
 			continue
 		var id: String = str(it.get("id", ""))
 		if bool(it.get("unlocked_default", false)):
 			_unlocked[id] = true
-	equipped_dot_id = "skin_default"
-	equipped_ring_id = "skin_default"
-	save_user()
 
 
 func save_user() -> void:
@@ -93,6 +107,7 @@ func save_user() -> void:
 	cf.set_value(SEC, KEY_UNLOCKED, ids)
 	cf.set_value(SEC, KEY_EQUIPPED_DOT, equipped_dot_id)
 	cf.set_value(SEC, KEY_EQUIPPED_RING, equipped_ring_id)
+	cf.set_value(SEC, KEY_EQUIPPED_WORLD, equipped_world_id)
 	cf.save(USER_PATH)
 
 
@@ -128,6 +143,8 @@ func equip(id: String) -> void:
 			equipped_dot_id = id
 		"ring_skin":
 			equipped_ring_id = id
+		"world_theme":
+			equipped_world_id = id
 		_:
 			equipped_dot_id = id
 			equipped_ring_id = id
@@ -155,6 +172,31 @@ func peek_equipped_theme() -> Array:
 func _apply_equipped_theme() -> void:
 	var c: Array = peek_equipped_theme()
 	equipped_changed.emit(c[0], c[1], c[2], c[3])
+	world_theme_changed.emit(peek_world_theme())
+
+
+func _number_or(dict: Dictionary, key: String, fallback: float) -> float:
+	var v = dict.get(key, fallback)
+	if typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT:
+		return float(v)
+	return fallback
+
+
+func peek_world_theme() -> Dictionary:
+	var def := get_item("world_default")
+	var world := get_item(equipped_world_id)
+	if world.is_empty():
+		world = def
+	return {
+		"deep_space_color": _color_from_arr(world.get("deep_space_color", null), _color_from_arr(def.get("deep_space_color", null), Color(0.01, 0.01, 0.02, 1.0))),
+		"mid_space_color": _color_from_arr(world.get("mid_space_color", null), _color_from_arr(def.get("mid_space_color", null), Color(0.02, 0.01, 0.12, 1.0))),
+		"high_space_color": _color_from_arr(world.get("high_space_color", null), _color_from_arr(def.get("high_space_color", null), Color(0.0, 0.0, 0.03, 1.0))),
+		"near_star_color": _color_from_arr(world.get("near_star_color", null), _color_from_arr(def.get("near_star_color", null), Color(0.62, 0.88, 1.0, 0.95))),
+		"far_star_color": _color_from_arr(world.get("far_star_color", null), _color_from_arr(def.get("far_star_color", null), Color(0.95, 0.75, 1.0, 0.75))),
+		"star_count": int(round(_number_or(world, "star_count", _number_or(def, "star_count", 180.0)))),
+		"glow_intensity": _number_or(world, "glow_intensity", _number_or(def, "glow_intensity", 0.45)),
+		"glow_strength": _number_or(world, "glow_strength", _number_or(def, "glow_strength", 0.85)),
+	}
 
 
 func try_buy_skin(id: String) -> bool:

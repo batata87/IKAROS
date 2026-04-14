@@ -17,6 +17,8 @@ var _score_t: float = 0.0
 
 func _ready() -> void:
 	z_index = -50
+	ItemDatabase.world_theme_changed.connect(_on_world_theme_changed)
+	_on_world_theme_changed(ItemDatabase.peek_world_theme())
 	_generate_stars()
 	GameManager.score_changed.connect(_on_score_changed)
 	_on_score_changed(GameManager.score)
@@ -53,3 +55,14 @@ func _generate_stars() -> void:
 
 func _on_score_changed(score: int) -> void:
 	_score_t = clampf(float(score) / 80.0, 0.0, 1.0)
+
+
+func _on_world_theme_changed(theme: Dictionary) -> void:
+	deep_space_color = theme.get("deep_space_color", deep_space_color)
+	mid_space_color = theme.get("mid_space_color", mid_space_color)
+	high_space_color = theme.get("high_space_color", high_space_color)
+	near_color = theme.get("near_star_color", near_color)
+	far_color = theme.get("far_star_color", far_color)
+	star_count = maxi(80, int(theme.get("star_count", star_count)))
+	_generate_stars()
+	queue_redraw()

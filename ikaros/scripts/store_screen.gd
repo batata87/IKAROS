@@ -5,6 +5,8 @@ signal vault_closed
 
 @onready var _lux_label: Label = $Margin/VBox/LuxRow/LuxLabel
 @onready var _item_list: VBoxContainer = $Margin/VBox/Scroll/ItemList
+@onready var _buy_lux_label: Label = $Margin/VBox/BuyLuxLabel
+@onready var _iap_row: HBoxContainer = $Margin/VBox/IAPRow
 
 
 func _ready() -> void:
@@ -12,7 +14,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_DISABLED
 	CurrencyManager.lux_changed.connect(_on_lux_changed)
 	ItemDatabase.equipped_changed.connect(_on_equipped_changed)
+	ItemDatabase.world_theme_changed.connect(_on_world_theme_changed)
 	_on_lux_changed(CurrencyManager.lux)
+	if _buy_lux_label:
+		_buy_lux_label.text = "All content is unlocked with LUX"
+	if _iap_row:
+		_iap_row.visible = false
 
 
 func open_vault() -> void:
@@ -37,6 +44,11 @@ func _on_equipped_changed(_a, _b, _c, _d) -> void:
 		_rebuild_list()
 
 
+func _on_world_theme_changed(_theme: Dictionary) -> void:
+	if visible:
+		_rebuild_list()
+
+
 func _add_section_title(title: String) -> void:
 	var l := Label.new()
 	l.text = title
@@ -54,6 +66,7 @@ func _rebuild_list() -> void:
 	var full_skins: Array = []
 	var dot_skins: Array = []
 	var ring_skins: Array = []
+	var world_themes: Array = []
 
 	for raw in ItemDatabase.get_items():
 		if not raw is Dictionary:
@@ -67,6 +80,8 @@ func _rebuild_list() -> void:
 				dot_skins.append(it)
 			"ring_skin":
 				ring_skins.append(it)
+			"world_theme":
+				world_themes.append(it)
 
 	if full_skins.size() > 0:
 		_add_section_title("Full sets (pilot + anchors)")
@@ -83,6 +98,11 @@ func _rebuild_list() -> void:
 		for it in ring_skins:
 			_item_list.add_child(_make_skin_row(it))
 
+	if world_themes.size() > 0:
+		_add_section_title("World themes (background + circles vibe)")
+		for it in world_themes:
+			_item_list.add_child(_make_skin_row(it))
+
 
 func _row_is_equipped(id: String, category: String) -> bool:
 	match category:
@@ -90,6 +110,8 @@ func _row_is_equipped(id: String, category: String) -> bool:
 			return ItemDatabase.equipped_dot_id == id
 		"ring_skin":
 			return ItemDatabase.equipped_ring_id == id
+		"world_theme":
+			return ItemDatabase.equipped_world_id == id
 		_:
 			return ItemDatabase.equipped_dot_id == id and ItemDatabase.equipped_ring_id == id
 
@@ -113,7 +135,12 @@ func _make_skin_row(it: Dictionary) -> Control:
 
 	var lbl := Label.new()
 	var price_line := ("%d LUX" % price) if price > 0 else "Free"
-	lbl.text = "%s\n%s" % [name_str, price_line]
+	var desc := str(it.get("description", ""))
+	var include_txt := ""
+	var include_raw = it.get("includes", [])
+	if include_raw is Array and include_raw.size() > 0:
+		include_txt = "\nIncludes: " + ", ".join(include_raw)
+	lbl.text = "%s\n%s%s%s" % [name_str, price_line, ("\n" + desc) if desc != "" else "", include_txt]
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	h.add_child(lbl)

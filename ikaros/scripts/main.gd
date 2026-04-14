@@ -17,6 +17,7 @@ static var _auto_start_after_reload: bool = false
 @onready var btn_try_again: Button = $CanvasLayer/GameOverModal/Center/Panel/Margin/VBox/BtnTryAgain
 @onready var btn_return_home: Button = $CanvasLayer/GameOverModal/Center/Panel/Margin/VBox/BtnReturnHome
 @onready var chromatic_overlay: CanvasItem = $ScreenJuiceLayer/ChromaticOverlay
+@onready var world_env: WorldEnvironment = $WorldEnvironment
 var _run_started: bool = false
 var _debug_label: Label = null
 var _debug_overlay_enabled: bool = true
@@ -26,6 +27,7 @@ func _ready() -> void:
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.multiplier_changed.connect(_on_multiplier_changed)
 	GameManager.state_changed.connect(_on_game_state_changed)
+	ItemDatabase.world_theme_changed.connect(_on_world_theme_changed)
 	CurrencyManager.lux_changed.connect(_on_lux_changed)
 	store_screen.vault_closed.connect(_on_vault_closed)
 
@@ -50,6 +52,7 @@ func _ready() -> void:
 	if chromatic_overlay != null:
 		chromatic_overlay.visible = false
 		chromatic_overlay.process_mode = Node.PROCESS_MODE_DISABLED
+	_on_world_theme_changed(ItemDatabase.peek_world_theme())
 	_ensure_debug_overlay()
 	set_process(true)
 	if _auto_start_after_reload:
@@ -156,6 +159,13 @@ func _on_return_home_pressed() -> void:
 
 func _on_lux_changed(balance: int) -> void:
 	lbl_lux.text = "LUX: %d" % balance
+
+
+func _on_world_theme_changed(theme: Dictionary) -> void:
+	if world_env == null or world_env.environment == null:
+		return
+	world_env.environment.glow_intensity = float(theme.get("glow_intensity", world_env.environment.glow_intensity))
+	world_env.environment.glow_strength = float(theme.get("glow_strength", world_env.environment.glow_strength))
 
 
 func _on_score_changed(_new_score: int) -> void:

@@ -21,6 +21,7 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var max_air_speed: float = 1300.0
 @export var dash_hint_duration: float = 0.24
 @export var dash_hint_length: float = 130.0
+@export var max_air_time_sec: float = 4.2
 
 var _anchor: NeonAnchor = null
 var _orbit_angle: float = 0.0
@@ -56,6 +57,7 @@ var _timer_fail_lock: bool = false
 var _capture_tween: Tween
 var _capture_tween_active: bool = false
 var _air_still_sec: float = 0.0
+var _air_time_sec: float = 0.0
 var _launch_count: int = 0
 var _capture_count: int = 0
 var _last_fail_reason: String = ""
@@ -210,6 +212,7 @@ func initialize_after_level() -> void:
 	_capture_blend_t = 1.0
 	_capture_tween_active = false
 	_air_still_sec = 0.0
+	_air_time_sec = 0.0
 	_launch_count = 0
 	_capture_count = 0
 	_last_fail_reason = ""
@@ -424,6 +427,7 @@ func _on_anchor_countdown_finished(anchor: NeonAnchor) -> void:
 	_anchor = null
 	_ignore_capture_anchor = null
 	_capture_blend_t = 1.0
+	_air_time_sec = 0.0
 	if absf(fall_v.y) < 30.0:
 		fall_v = Vector2(0.0, 380.0)
 	velocity = fall_v
@@ -505,6 +509,7 @@ func _release_dash() -> void:
 	_stuck_time_sec = 0.0
 	_coyote_used = false
 	_coyote_armed = velocity.y > 0.0
+	_air_time_sec = 0.0
 	GameManager.set_game_state(GameManager.GameState.DASHING)
 	_clear_neon_trail()
 	if trail_particles:
@@ -555,6 +560,11 @@ func _spawn_coyote_fx() -> void:
 
 func _physics_dash(delta: float) -> void:
 	_dash_time_sec += delta
+	_air_time_sec += delta
+	if _air_time_sec > max_air_time_sec:
+		_last_fail_reason = "air_timeout"
+		GameManager.trigger_fail()
+		return
 	_release_capture_ignore_if_exited()
 	_cap_air_velocity()
 	var col = move_and_collide(velocity * delta)
@@ -576,6 +586,11 @@ func _physics_dash(delta: float) -> void:
 
 
 func _physics_fall(delta: float) -> void:
+	_air_time_sec += delta
+	if _air_time_sec > max_air_time_sec:
+		_last_fail_reason = "fall_timeout"
+		die()
+		return
 	velocity.y += dash_gravity * delta
 	_apply_subtle_magnet(delta, 0.35)
 	_cap_air_velocity()
@@ -758,6 +773,7 @@ func _capture_anchor(a: NeonAnchor) -> void:
 	_capture_count += 1
 	GameManager.set_game_state(GameManager.GameState.ORBITING)
 	_dash_time_sec = 0.0
+	_air_time_sec = 0.0
 	_stuck_time_sec = 0.0
 	_timer_fail_lock = false
 	_reset_centrifugal()

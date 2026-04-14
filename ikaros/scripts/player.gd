@@ -21,7 +21,7 @@ const MAX_LAUNCH_MULT: float = 3.0
 @export var max_air_speed: float = 1300.0
 @export var dash_hint_duration: float = 0.24
 @export var dash_hint_length: float = 130.0
-@export var max_air_time_sec: float = 4.2
+@export var max_air_time_sec: float = 8.5
 
 var _anchor: NeonAnchor = null
 var _orbit_angle: float = 0.0
@@ -1008,7 +1008,7 @@ func _update_screen_safe_container() -> void:
 	var rect := get_viewport().get_visible_rect()
 	var left_w := _screen_to_world(Vector2(0.0, rect.size.y * 0.5)).x
 	var right_w := _screen_to_world(Vector2(rect.size.x, rect.size.y * 0.5)).x
-	var cam_y := _cam.get_screen_center_position().y if _cam != null else global_position.y
+	var cam_y := _cam.global_position.y if _cam != null else global_position.y
 	var floor_y := cam_y + 600.0
 	var left_shape := (_left_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D
 	var right_shape := (_right_wall.get_child(0) as CollisionShape2D).shape as WorldBoundaryShape2D

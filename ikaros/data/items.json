@@ -15,7 +15,7 @@
   {
     "id": "skin_solar",
     "name": "Solar Core",
-    "price": 420,
+    "price": 3,
     "category": "skin",
     "unlocked_default": false,
     "description": "Amber plasma style with warm, bright circles.",
@@ -28,7 +28,7 @@
   {
     "id": "skin_abyss",
     "name": "Abyss Glass",
-    "price": 760,
+    "price": 5,
     "category": "skin",
     "unlocked_default": false,
     "description": "Deep blue glass tones for a cold-space vibe.",
@@ -41,7 +41,7 @@
   {
     "id": "skin_blood",
     "name": "Crimson Orbit",
-    "price": 1200,
+    "price": 8,
     "category": "skin",
     "unlocked_default": false,
     "description": "Aggressive red kit with high-contrast circles.",
@@ -54,7 +54,7 @@
   {
     "id": "skin_limewire",
     "name": "Limewire Pulse",
-    "price": 980,
+    "price": 7,
     "category": "skin",
     "unlocked_default": false,
     "description": "Electric green esports look for pilot and circles.",
@@ -67,7 +67,7 @@
   {
     "id": "dot_mercury",
     "name": "Mercury Drop",
-    "price": 520,
+    "price": 4,
     "category": "dot_skin",
     "unlocked_default": false,
     "description": "Silvery pilot bead with frosted cyan edge.",
@@ -78,7 +78,7 @@
   {
     "id": "dot_nanite",
     "name": "Nanite Swarm",
-    "price": 480,
+    "price": 3,
     "category": "dot_skin",
     "unlocked_default": false,
     "description": "Bio-tech green core with a yellow neural ring.",
@@ -89,7 +89,7 @@
   {
     "id": "dot_supernova",
     "name": "Supernova Core",
-    "price": 680,
+    "price": 5,
     "category": "dot_skin",
     "unlocked_default": false,
     "description": "Bright stellar core with hot pink rim.",
@@ -100,7 +100,7 @@
   {
     "id": "dot_void",
     "name": "Void Pearl",
-    "price": 720,
+    "price": 6,
     "category": "dot_skin",
     "unlocked_default": false,
     "description": "Dark pearl center with purple neon edge.",
@@ -111,7 +111,7 @@
   {
     "id": "ring_chromatic",
     "name": "Halochrome Ring",
-    "price": 550,
+    "price": 4,
     "category": "ring_skin",
     "unlocked_default": false,
     "description": "Iridescent anchor ring with rose core glow.",
@@ -122,7 +122,7 @@
   {
     "id": "ring_obsidian",
     "name": "Obsidian Corona",
-    "price": 500,
+    "price": 3,
     "category": "ring_skin",
     "unlocked_default": false,
     "description": "Dark violet ring with dense core tint.",
@@ -133,7 +133,7 @@
   {
     "id": "ring_signal",
     "name": "Signal Halo",
-    "price": 620,
+    "price": 5,
     "category": "ring_skin",
     "unlocked_default": false,
     "description": "Orange warning-beacon anchors.",
@@ -144,7 +144,7 @@
   {
     "id": "ring_glacier",
     "name": "Glacier Halo",
-    "price": 740,
+    "price": 6,
     "category": "ring_skin",
     "unlocked_default": false,
     "description": "Cold white-blue ring and soft icy core.",
@@ -172,7 +172,7 @@
   {
     "id": "world_dawnforge",
     "name": "Dawnforge",
-    "price": 950,
+    "price": 7,
     "category": "world_theme",
     "unlocked_default": false,
     "description": "Golden nebula dawn with warm bloom.",
@@ -189,7 +189,7 @@
   {
     "id": "world_aurora",
     "name": "Aurora Drift",
-    "price": 1080,
+    "price": 8,
     "category": "world_theme",
     "unlocked_default": false,
     "description": "Teal-violet arctic sky with crisp stars.",
@@ -206,7 +206,7 @@
   {
     "id": "world_voidstorm",
     "name": "Voidstorm",
-    "price": 1400,
+    "price": 10,
     "category": "world_theme",
     "unlocked_default": false,
     "description": "Dark storm sky with electric magenta flashes.",
